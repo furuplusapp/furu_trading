@@ -1,44 +1,47 @@
 from pydantic_settings import BaseSettings
 from typing import List
 import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 class Settings(BaseSettings):
     # App
-    app_name: str = "Furu AI"
-    app_version: str = "1.0.0"
-    debug: bool = True
+    app_name: str = os.getenv("APP_NAME")
+    app_version: str = os.getenv("APP_VERSION")
+    debug: bool = os.getenv("DEBUG")
     
     # Database
-    database_url: str
-    test_database_url: str
+    database_url: str = os.getenv("DATABASE_URL")
+    test_database_url: str = os.getenv("TEST_DATABASE_URL")
     
     # Redis
-    redis_url: str
+    redis_url: str = os.getenv("REDIS_URL")
     
     # JWT
-    secret_key: str
-    algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
-    refresh_token_expire_days: int = 7
+    secret_key: str = os.getenv("SECRET_KEY")
+    algorithm: str = os.getenv("ALGORITHM")
+    access_token_expire_minutes: int = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
+    refresh_token_expire_days: int = os.getenv("REFRESH_TOKEN_EXPIRE_DAYS")
     
     # Email
-    smtp_host: str
-    smtp_port: int = 587
-    smtp_username: str
-    smtp_password: str
-    from_email: str
+    smtp_host: str = os.getenv("SMTP_HOST")
+    smtp_port: int = os.getenv("SMTP_PORT")
+    smtp_username: str = os.getenv("SMTP_USERNAME")
+    smtp_password: str = os.getenv("SMTP_PASSWORD")
+    from_email: str = os.getenv("FROM_EMAIL")
     
     # CORS
-    cors_origins: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    cors_origins: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000", os.getenv("NEXT_PUBLIC_BASE_URL")]
     
     # Celery
-    celery_broker_url: str
-    celery_result_backend: str
+    celery_broker_url: str = os.getenv("CELERY_BROKER_URL")
+    celery_result_backend: str = os.getenv("CELERY_RESULT_BACKEND")
     
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "allow"
 
 
 settings = Settings()

@@ -28,7 +28,8 @@ def run_celery():
         sys.executable, "-m", "celery", 
         "-A", "app.tasks.celery_app", 
         "worker", 
-        "--loglevel=info"
+        "--loglevel=info",
+        "--concurrency=1"
     ])
 
 

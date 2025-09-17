@@ -55,7 +55,7 @@ echo 🎉 Setup complete! Starting servers...
 
 REM Start Celery worker in background
 echo 🔄 Starting Celery worker...
-start "Celery Worker" cmd /c "celery -A app.tasks.celery_app worker --loglevel=info"
+start "Celery Worker" cmd /c "celery -A app.tasks.celery_app worker --loglevel=info --concurrency=1"
 
 REM Wait a moment for Celery to start
 timeout /t 3 /nobreak >nul
@@ -66,4 +66,4 @@ echo    API: http://localhost:8000
 echo    Docs: http://localhost:8000/docs
 echo    Press Ctrl+C to stop all services
 
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug

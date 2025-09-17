@@ -61,7 +61,8 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user": user
     }
 
 
@@ -84,6 +85,16 @@ def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    # Get user information
+    from app.crud.user import get_user_by_id
+    user = get_user_by_id(db, int(user_id))
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     # Create new tokens
     access_token = create_access_token(data={"sub": user_id})
     new_refresh_token = create_refresh_token(data={"sub": user_id})
@@ -91,7 +102,8 @@ def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
     return {
         "access_token": access_token,
         "refresh_token": new_refresh_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user": user
     }
 
 
@@ -189,3 +201,4 @@ def reset_password(reset: PasswordReset, db: Session = Depends(get_db)):
     mark_password_reset_used(db, reset.token)
     
     return {"message": "Password reset successfully"}
+
