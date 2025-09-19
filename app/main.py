@@ -4,7 +4,7 @@ from app.core.config import settings
 from app.api.v1 import api_router
 from app.core.database import engine
 from app.models import user, verification
-
+    
 # Create database tables
 user.Base.metadata.create_all(bind=engine)
 verification.Base.metadata.create_all(bind=engine)
@@ -18,7 +18,7 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],

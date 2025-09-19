@@ -32,11 +32,19 @@ class Settings(BaseSettings):
     from_email: str = os.getenv("FROM_EMAIL")
     
     # CORS
-    cors_origins: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000", os.getenv("NEXT_PUBLIC_BASE_URL")]
+    cors_origins: List[str] = [os.getenv("FRONTEND_URL")]
     
     # Celery
     celery_broker_url: str = os.getenv("CELERY_BROKER_URL")
     celery_result_backend: str = os.getenv("CELERY_RESULT_BACKEND")
+    
+    # Stripe
+    stripe_secret_key: str = os.getenv("STRIPE_SECRET_KEY")
+    stripe_publishable_key: str = os.getenv("STRIPE_PUBLISHABLE_KEY")
+    stripe_webhook_secret: str = os.getenv("STRIPE_WEBHOOK_SECRET")
+    
+    # Backend URL
+    backend_url: str = os.getenv("BACKEND_URL")
     
     class Config:
         env_file = ".env"

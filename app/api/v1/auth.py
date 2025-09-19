@@ -128,7 +128,10 @@ def verify_email(verification: EmailVerification, db: Session = Depends(get_db))
     # Mark verification token as used
     mark_email_verification_used(db, verification.token)
     
-    return {"message": "Email verified successfully"}
+    return {
+        "message": "Email verified successfully",
+        "redirect_url": "/signin?verified=true"
+    }
 
 
 @router.post("/resend-verification")

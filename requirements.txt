@@ -10,6 +10,7 @@ passlib[bcrypt]
 python-multipart
 pydantic[email]
 python-dotenv
+stripe
 pytest
 pytest-asyncio
 httpx

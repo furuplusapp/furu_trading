@@ -60,8 +60,6 @@ timeout /t 3 /nobreak >nul
 
 REM Start FastAPI server
 echo 🌐 Starting FastAPI server...
-echo    API: http://localhost:8000
-echo    Docs: http://localhost:8000/docs
 echo    Press Ctrl+C to stop all services
 
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level

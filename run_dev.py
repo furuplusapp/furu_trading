@@ -9,7 +9,7 @@ import time
 import signal
 import os
 from multiprocessing import Process
-
+from app.core.config import settings
 
 def run_fastapi():
     """Run FastAPI development server"""
@@ -18,7 +18,8 @@ def run_fastapi():
         "app.main:app", 
         "--host", "0.0.0.0", 
         "--port", "8000", 
-        "--reload"
+        "--reload",
+        "--log-level", "debug"
     ])
 
 
@@ -29,7 +30,8 @@ def run_celery():
         "-A", "app.tasks.celery_app", 
         "worker", 
         "--loglevel=info",
-        "--concurrency=1"
+        "--concurrency=1",
+        "--pool=solo"
     ])
 
 
@@ -44,13 +46,13 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
     
     print("Starting Furu AI Backend Development Servers...")
-    print("FastAPI: http://localhost:8000")
-    print("API Docs: http://localhost:8000/docs")
+    print(f"FastAPI: {settings.backend_url}")
+    print(f"API Docs: {settings.backend_url}/docs")
     print("Press Ctrl+C to stop")
     
-    # Start Celery worker in background
-    celery_process = Process(target=run_celery)
-    celery_process.start()
+    # # Start Celery worker in background
+    # celery_process = Process(target=run_celery)
+    # celery_process.start()
     
     # Give Celery time to start
     time.sleep(2)
