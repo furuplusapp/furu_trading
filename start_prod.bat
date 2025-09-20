@@ -62,4 +62,4 @@ REM Start FastAPI server
 echo 🌐 Starting FastAPI server...
 echo    Press Ctrl+C to stop all services
 
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --log-level debug
