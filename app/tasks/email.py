@@ -1,12 +1,13 @@
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import resend
 from app.tasks.celery_app import celery_app
 from app.core.config import settings
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Set Resend API key
+resend.api_key = settings.resend_api_key
 
 @celery_app.task
 def send_verification_email(email: str, token: str):
@@ -44,7 +45,7 @@ def send_verification_email(email: str, token: str):
     The Furu AI Team
     """
     
-    _send_email(email, subject, html_body, text_body)
+    _send_email_resend(email, subject, html_body, text_body)
 
 
 @celery_app.task
@@ -86,50 +87,26 @@ def send_password_reset_email(email: str, token: str):
     The Furu AI Team
     """
     
-    _send_email(email, subject, html_body, text_body)
+    _send_email_resend(email, subject, html_body, text_body)
 
 
-def _send_email(to_email: str, subject: str, html_body: str, text_body: str):
-    """Send email using SMTP with fallback to direct IP"""
-    # Gmail SMTP IP addresses as fallback
-    gmail_ips = ["74.125.200.108", "74.125.200.109", "173.194.76.108", "173.194.76.109"]
-    
-    # Try primary SMTP host first, then fallback to IPs
-    smtp_hosts = [settings.smtp_host] + gmail_ips
-    
-    last_error = None
-    
-    for smtp_host in smtp_hosts:
-        try:
-            print(f"Attempting SMTP connection to {smtp_host}:{settings.smtp_port}")
-            
-            # Create message
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = settings.from_email
-            msg["To"] = to_email
-            
-            # Add both plain text and HTML versions
-            text_part = MIMEText(text_body, "plain")
-            html_part = MIMEText(html_body, "html")
-            
-            msg.attach(text_part)
-            msg.attach(html_part)
-            
-            # Send email
-            with smtplib.SMTP(smtp_host, settings.smtp_port, timeout=30) as server:
-                server.starttls()
-                server.login(settings.smtp_username, settings.smtp_password)
-                server.send_message(msg)
-                
-            print(f"Email sent successfully to {to_email} via {smtp_host}")
-            return  # Success, exit function
-            
-        except Exception as e:
-            last_error = e
-            print(f"Failed to send email via {smtp_host}: {str(e)}")
-            continue  # Try next host
-    
-    # If all hosts failed, raise the last error
-    print(f"All SMTP hosts failed. Last error: {str(last_error)}")
-    raise last_error
+def _send_email_resend(to_email: str, subject: str, html_body: str, text_body: str):
+    """Send email using Resend API"""
+    try:
+        print(f"Sending email to {to_email} via Resend API")
+        
+        # Send email using Resend
+        r = resend.Emails.send({
+            "from": settings.from_email,
+            "to": to_email,
+            "subject": subject,
+            "html": html_body,
+            "text": text_body
+        })
+        
+        print(f"Email sent successfully to {to_email} via Resend. ID: {r.get('id', 'unknown')}")
+        return r
+        
+    except Exception as e:
+        print(f"Failed to send email via Resend: {str(e)}")
+        raise e

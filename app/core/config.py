@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     smtp_password: str = os.getenv("SMTP_PASSWORD")
     from_email: str = os.getenv("FROM_EMAIL")
     
+    # Resend API
+    resend_api_key: str = os.getenv("RESEND_API_KEY")
+    
     # CORS
     cors_origins: List[str] = [os.getenv("FRONTEND_URL")]
     
