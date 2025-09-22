@@ -18,6 +18,8 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
     from app.core.security import validate_password_strength
     
+    print("user in register", user)
+    
     # Check if user already exists
     if get_user_by_email(db, user.email):
         raise HTTPException(
