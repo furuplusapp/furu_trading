@@ -47,8 +47,6 @@ if errorlevel 1 (
     exit /b 1
 )
 
-
-
 echo 🎉 Setup complete! Starting servers...
 
 REM Start Celery worker in background

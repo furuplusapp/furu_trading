@@ -6,20 +6,28 @@ from app.crud.user import create_user, authenticate_user, get_user_by_email, upd
 from app.crud.verification import create_email_verification, get_email_verification, mark_email_verification_used
 from app.schemas.auth import UserCreate, UserLogin, Token, UserResponse, EmailVerification, PasswordResetRequest, PasswordReset
 from app.tasks.email import send_verification_email
-from datetime import timedelta
-from app.core.config import settings
+from app.api.dependencies import get_current_user
 
 router = APIRouter()
-
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
+    from app.core.security import validate_password_strength
+    
     # Check if user already exists
     if get_user_by_email(db, user.email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
+        )
+    
+    # Validate password strength
+    is_valid, message = validate_password_strength(user.password)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=message
         )
     
     # Create user
@@ -49,6 +57,12 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Inactive user"
+        )
+    
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Please verify your email before logging in. Check your inbox for a verification link."
         )
     
     # Update last login
@@ -204,4 +218,52 @@ def reset_password(reset: PasswordReset, db: Session = Depends(get_db)):
     mark_password_reset_used(db, reset.token)
     
     return {"message": "Password reset successfully"}
+
+
+@router.post("/logout")
+def logout(current_user = Depends(get_current_user)):
+    """Logout user (client should clear tokens)"""
+    # In a more advanced implementation, you could blacklist the token
+    # For now, we rely on client-side token removal
+    return {"message": "Logged out successfully"}
+
+
+@router.post("/change-password")
+def change_password(
+    current_password: str,
+    new_password: str,
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Change user password"""
+    from app.core.security import verify_password, get_password_hash, validate_password_strength
+    from app.crud.user import update_user
+    from app.schemas.auth import UserUpdate
+    
+    # Verify current password
+    if not verify_password(current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+    
+    # Validate new password strength
+    is_valid, message = validate_password_strength(new_password)
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=message
+        )
+    
+    # Update password
+    user_update = UserUpdate(password=new_password)
+    updated_user = update_user(db, current_user.id, user_update)
+    
+    if not updated_user:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update password"
+        )
+    
+    return {"message": "Password changed successfully"}
 

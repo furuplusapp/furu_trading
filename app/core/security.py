@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
+import re
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.core.config import settings
@@ -49,3 +50,23 @@ def verify_token(token: str, token_type: str = "access") -> Optional[dict]:
         return payload
     except JWTError:
         return None
+
+
+def validate_password_strength(password: str) -> tuple[bool, str]:
+    """Validate password strength"""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters long"
+    
+    if not re.search(r"[A-Z]", password):
+        return False, "Password must contain at least one uppercase letter"
+    
+    if not re.search(r"[a-z]", password):
+        return False, "Password must contain at least one lowercase letter"
+    
+    if not re.search(r"\d", password):
+        return False, "Password must contain at least one number"
+    
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        return False, "Password must contain at least one special character"
+    
+    return True, "Password is strong"
