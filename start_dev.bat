@@ -22,7 +22,7 @@ if not exist ".env" (
     echo ⚙️  Creating .env file from template...
     copy env.example .env
     echo ⚠️  Please edit .env file with your database and email settings before continuing!
-    echo    Required: DATABASE_URL, REDIS_URL, SECRET_KEY, SMTP_USERNAME, SMTP_PASSWORD
+    echo    Required: DATABASE_URL, REDIS_URL, SECRET_KEY
     pause
     exit /b 1
 )

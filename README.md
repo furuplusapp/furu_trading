@@ -142,20 +142,6 @@ black .
 isort .
 ```
 
-## Environment Variables
-
-| Variable        | Description                  | Default               |
-| --------------- | ---------------------------- | --------------------- |
-| `DATABASE_URL`  | PostgreSQL connection string | Required              |
-| `REDIS_URL`     | Redis connection string      | Required              |
-| `SECRET_KEY`    | JWT secret key               | Required              |
-| `SMTP_HOST`     | SMTP server host             | smtp.gmail.com        |
-| `SMTP_PORT`     | SMTP server port             | 587                   |
-| `SMTP_USERNAME` | SMTP username                | Required              |
-| `SMTP_PASSWORD` | SMTP password                | Required              |
-| `FROM_EMAIL`    | From email address           | Required              |
-| `CORS_ORIGINS`  | Allowed CORS origins         | http://localhost:3000 |
-
 ## Production Deployment
 
 1. **Set production environment variables**

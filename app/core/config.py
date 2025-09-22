@@ -25,10 +25,6 @@ class Settings(BaseSettings):
     refresh_token_expire_days: int = os.getenv("REFRESH_TOKEN_EXPIRE_DAYS")
     
     # Email
-    smtp_host: str = os.getenv("SMTP_HOST")
-    smtp_port: int = os.getenv("SMTP_PORT")
-    smtp_username: str = os.getenv("SMTP_USERNAME")
-    smtp_password: str = os.getenv("SMTP_PASSWORD")
     from_email: str = os.getenv("FROM_EMAIL")
     
     # Resend API
