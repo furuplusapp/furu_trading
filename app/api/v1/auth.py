@@ -7,6 +7,7 @@ from app.crud.verification import create_email_verification, get_email_verificat
 from app.schemas.auth import UserCreate, UserLogin, Token, UserResponse, EmailVerification, PasswordResetRequest, PasswordReset
 from app.tasks.email import send_verification_email
 from app.api.dependencies import get_current_user
+from datetime import timedelta
 
 router = APIRouter()
 
@@ -68,9 +69,21 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
     # Update last login
     update_last_login(db, user)
     
-    # Create tokens
-    access_token = create_access_token(data={"sub": str(user.id)})
-    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+    # Create tokens with different expiration based on remember me
+    if user_credentials.remember_me:
+        # Longer expiration for remember me: 30 days for access, 90 days for refresh
+        access_token = create_access_token(
+            data={"sub": str(user.id)}, 
+            expires_delta=timedelta(days=30)
+        )
+        refresh_token = create_refresh_token(
+            data={"sub": str(user.id)},
+            expires_delta=timedelta(days=90)
+        )
+    else:
+        # Default expiration: 30 minutes for access, 7 days for refresh
+        access_token = create_access_token(data={"sub": str(user.id)})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
     
     return {
         "access_token": access_token,
