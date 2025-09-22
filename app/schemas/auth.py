@@ -11,6 +11,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    google_id: Optional[str] = None
 
 
 class UserUpdate(BaseModel):

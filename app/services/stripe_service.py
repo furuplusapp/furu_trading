@@ -74,7 +74,7 @@ async def create_checkout_session(customer_id: str, price_id: str, user_id: int,
             payment_method_types=["card"],
             line_items=[{"price": price_id, "quantity": 1}],
             mode="subscription",
-            success_url=f"{settings.cors_origins[0]}/dashboard?session_id={{CHECKOUT_SESSION_ID}}&upgrade=success",
+            success_url=f"{settings.cors_origins[0]}/subscription-success?session_id={{CHECKOUT_SESSION_ID}}&upgrade=success",
             cancel_url=f"{settings.cors_origins[0]}/pricing?canceled=true",
             metadata={
                 "userId": str(user_id),

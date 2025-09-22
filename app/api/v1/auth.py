@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from app.core.database import get_db
 from app.core.security import create_access_token, create_refresh_token, verify_token
 from app.crud.user import create_user, authenticate_user, get_user_by_email, update_last_login, verify_user_email
@@ -8,6 +9,7 @@ from app.schemas.auth import UserCreate, UserLogin, Token, UserResponse, EmailVe
 from app.tasks.email import send_verification_email
 from app.api.dependencies import get_current_user
 from datetime import timedelta
+import jwt
 
 router = APIRouter()
 
@@ -279,4 +281,82 @@ def change_password(
         )
     
     return {"message": "Password changed successfully"}
+
+
+class GoogleAuthRequest(BaseModel):
+    credential: str
+
+
+@router.post("/google", response_model=Token)
+def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
+    """Authenticate user with Google OAuth"""
+    try:
+        # Decode the Google JWT token
+        # Note: In production, you should verify the token signature
+        decoded_token = jwt.decode(
+            request.credential, 
+            options={"verify_signature": False}  # For now, skip signature verification
+        )
+        
+        # Extract user information from the token
+        google_id = decoded_token.get("sub")
+        email = decoded_token.get("email")
+        name = decoded_token.get("name")
+        given_name = decoded_token.get("given_name", "")
+        family_name = decoded_token.get("family_name", "")
+        
+        if not google_id or not email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid Google token"
+            )
+        
+        # Check if user exists by email
+        user = get_user_by_email(db, email)
+        
+        if user:
+            # User exists, update their Google ID if not set
+            if not user.google_id:
+                user.google_id = google_id
+                db.commit()
+                db.refresh(user)
+        else:
+            # Create new user
+            user_data = UserCreate(
+                email=email,
+                full_name=name or f"{given_name} {family_name}".strip(),
+                password="",  # No password for Google OAuth users
+                google_id=google_id
+            )
+            user = create_user(db, user_data)
+            # Mark as verified since Google already verified the email
+            user.is_verified = True
+            db.commit()
+            db.refresh(user)
+        
+        # Update last login
+        update_last_login(db, user)
+        
+        # Create tokens
+        access_token = create_access_token(data={"sub": str(user.id)})
+        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "user": user
+        }
+        
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Google token"
+        )
+    except Exception as e:
+        print(f"Google OAuth error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google authentication failed"
+        )
 

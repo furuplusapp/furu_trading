@@ -18,12 +18,13 @@ def get_user_by_email(db: Session, email: str) -> Optional[User]:
 
 def create_user(db: Session, user: UserCreate) -> User:
     """Create new user"""
-    hashed_password = get_password_hash(user.password)
+    hashed_password = get_password_hash(user.password) if user.password else ""
     
     db_user = User(
         email=user.email,
         hashed_password=hashed_password,
-        full_name=user.full_name
+        full_name=user.full_name,
+        google_id=user.google_id
     )
     db.add(db_user)
     db.commit()
