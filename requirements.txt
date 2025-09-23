@@ -5,7 +5,7 @@ alembic
 psycopg2-binary
 redis
 celery
-PyJWT
+python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
 pydantic[email]
