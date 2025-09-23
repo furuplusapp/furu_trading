@@ -9,7 +9,7 @@ from app.schemas.auth import UserCreate, UserLogin, Token, UserResponse, EmailVe
 from app.tasks.email import send_verification_email
 from app.api.dependencies import get_current_user
 from datetime import timedelta
-import jwt
+from jose import jwt
 
 router = APIRouter()
 
@@ -350,7 +350,7 @@ def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
             "user": user
         }
         
-    except jwt.InvalidTokenError:
+    except jwt.JWTError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid Google token"

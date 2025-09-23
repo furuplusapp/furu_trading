@@ -16,4 +16,3 @@ pytest-asyncio
 httpx
 pydantic-settings
 resend
-jwt
