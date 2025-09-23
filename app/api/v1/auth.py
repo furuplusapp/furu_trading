@@ -297,6 +297,7 @@ def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
         # Note: In production, you should verify the token signature
         decoded_token = jwt.decode(
             request.credential, 
+            key=None,  # No key needed when not verifying signature
             options={"verify_signature": False}  # For now, skip signature verification
         )
         
