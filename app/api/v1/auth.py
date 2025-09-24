@@ -10,6 +10,8 @@ from app.tasks.email import send_verification_email
 from app.api.dependencies import get_current_user
 from datetime import timedelta
 from jose import jwt
+import base64
+import json
 
 router = APIRouter()
 
@@ -293,13 +295,29 @@ class GoogleAuthRequest(BaseModel):
 def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
     """Authenticate user with Google OAuth"""
     try:
-        # Decode the Google JWT token
-        # Note: In production, you should verify the token signature
-        decoded_token = jwt.decode(
-            request.credential, 
-            key=None,  # No key needed when not verifying signature
-            options={"verify_signature": False}  # For now, skip signature verification
-        )
+        print(f"Received Google credential: {request.credential[:50]}...")
+        
+        # Decode the Google JWT token manually (without verification for now)
+        try:
+            # Split the JWT token into parts
+            parts = request.credential.split('.')
+            if len(parts) != 3:
+                raise ValueError("Invalid JWT format")
+            
+            # Decode the payload (second part)
+            payload = parts[1]
+            # Add padding if needed
+            payload += '=' * (4 - len(payload) % 4)
+            decoded_payload = base64.urlsafe_b64decode(payload)
+            decoded_token = json.loads(decoded_payload)
+            
+            print(f"Decoded token: {decoded_token}")
+        except Exception as decode_error:
+            print(f"JWT decode error: {decode_error}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid Google token format"
+            )
         
         # Extract user information from the token
         google_id = decoded_token.get("sub")
@@ -308,10 +326,13 @@ def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
         given_name = decoded_token.get("given_name", "")
         family_name = decoded_token.get("family_name", "")
         
+        print(f"Extracted - google_id: {google_id}, email: {email}")
+        
         if not google_id or not email:
+            print(f"Missing required fields - google_id: {google_id}, email: {email}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid Google token"
+                detail="Invalid Google token - missing required fields"
             )
         
         # Check if user exists by email
@@ -352,6 +373,7 @@ def google_auth(request: GoogleAuthRequest, db: Session = Depends(get_db)):
         }
         
     except jwt.JWTError:
+        print("Invalid Google token", jwt.JWTError)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid Google token"
