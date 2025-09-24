@@ -239,14 +239,6 @@ def reset_password(reset: PasswordReset, db: Session = Depends(get_db)):
     return {"message": "Password reset successfully"}
 
 
-@router.post("/logout")
-def logout(current_user = Depends(get_current_user)):
-    """Logout user (client should clear tokens)"""
-    # In a more advanced implementation, you could blacklist the token
-    # For now, we rely on client-side token removal
-    return {"message": "Logged out successfully"}
-
-
 @router.post("/change-password")
 def change_password(
     current_password: str,
