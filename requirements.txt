@@ -16,3 +16,4 @@ pytest-asyncio
 httpx
 pydantic-settings
 resend
+openai
