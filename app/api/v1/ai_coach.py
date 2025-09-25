@@ -10,9 +10,8 @@ from app.models.user import User
 
 router = APIRouter()
 
-# OpenAI configuration
+# OpenAI config
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 
 class ChatMessage(BaseModel):
     role: str
