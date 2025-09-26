@@ -3,15 +3,15 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Dict, Any
 from openai import OpenAI
-import os
 from app.core.database import get_db
 from app.api.dependencies import get_current_user
 from app.models.user import User
+from app.core.config import settings
 
 router = APIRouter()
 
 # OpenAI config
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(api_key=settings.openai_api_key)
 
 class ChatMessage(BaseModel):
     role: str

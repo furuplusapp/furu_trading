@@ -69,13 +69,19 @@ async def create_checkout_session(customer_id: str, price_id: str, user_id: int,
     
     """Create a Stripe checkout session"""
     try:
+        if settings.environment == "production":
+            success_url = f"{settings.cors_origins[0]}/subscription-success?session_id={{CHECKOUT_SESSION_ID}}&upgrade=success"
+            cancel_url = f"{settings.cors_origins[0]}/pricing?canceled=true"
+        else:
+            success_url = f"{settings.cors_origins[1]}/subscription-success?session_id={{CHECKOUT_SESSION_ID}}&upgrade=success"
+            cancel_url = f"{settings.cors_origins[1]}/pricing?canceled=true"
         session = stripe.checkout.Session.create(
             customer=customer_id,
             payment_method_types=["card"],
             line_items=[{"price": price_id, "quantity": 1}],
             mode="subscription",
-            success_url=f"{settings.cors_origins[0]}/subscription-success?session_id={{CHECKOUT_SESSION_ID}}&upgrade=success",
-            cancel_url=f"{settings.cors_origins[0]}/pricing?canceled=true",
+            success_url=success_url,
+            cancel_url=cancel_url,
             metadata={
                 "userId": str(user_id),
                 "planName": plan_name,
@@ -90,9 +96,13 @@ async def create_checkout_session(customer_id: str, price_id: str, user_id: int,
 async def create_portal_session(customer_id: str):
     """Create a Stripe customer portal session"""
     try:
+        if settings.environment == "production":
+            return_url = f"{settings.cors_origins[0]}/dashboard"
+        else:
+            return_url = f"{settings.cors_origins[1]}/dashboard"
         session = stripe.billingPortal.Session.create(
             customer=customer_id,
-            return_url=f"{settings.cors_origins[0]}/dashboard",
+            return_url=return_url,
         )
         return session
     except stripe.error.StripeError as e:

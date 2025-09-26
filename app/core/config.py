@@ -9,7 +9,6 @@ class Settings(BaseSettings):
     # App
     app_name: str = os.getenv("APP_NAME")
     app_version: str = os.getenv("APP_VERSION")
-    debug: bool = os.getenv("DEBUG")
     
     # Database
     database_url: str = os.getenv("DATABASE_URL")
@@ -31,12 +30,8 @@ class Settings(BaseSettings):
     resend_api_key: str = os.getenv("RESEND_API_KEY")
     
     # CORS
-    cors_origins: List[str] = [
-        os.getenv("FRONTEND_URL"),
-        "https://trading-furu-plus.vercel.app",
-    ]
+    cors_origins: List[str] = ["https://trading-furu-plus.vercel.app", "http://localhost:3000"]
     
-    # Remove duplicates and None values
     print("cors_origins", cors_origins)
     
     # Celery
@@ -50,6 +45,12 @@ class Settings(BaseSettings):
     
     # Backend URL
     backend_url: str = os.getenv("BACKEND_URL")
+    
+    #OpenAI
+    openai_api_key: str = os.getenv("OPENAI_API_KEY")
+    
+    #Environment
+    environment: str = os.getenv("ENVIRONMENT")
     
     class Config:
         env_file = ".env"
