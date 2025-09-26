@@ -32,14 +32,13 @@ class Settings(BaseSettings):
     
     # CORS
     cors_origins: List[str] = [
+        os.getenv("FRONTEND_URL"),
         "http://localhost:3000",
-        "https://localhost:3000", 
-        "https://trading-furu-plus.vercel.app",
-        os.getenv("FRONTEND_URL", "http://localhost:3000")
     ]
     
     # Remove duplicates and None values
     cors_origins = list(set([origin for origin in cors_origins if origin]))
+    print("cors_origins", cors_origins)
     
     # Celery
     celery_broker_url: str = os.getenv("CELERY_BROKER_URL")
