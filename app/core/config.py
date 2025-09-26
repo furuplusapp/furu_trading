@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     cors_origins: List[str] = [
         os.getenv("FRONTEND_URL"),
         "http://localhost:3000",
+        "https://trading-furu-plus.vercel.app",
     ]
     
     # Remove duplicates and None values
