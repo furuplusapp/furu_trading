@@ -13,8 +13,8 @@ async def create_customer(user: User) -> str:
             email=user.email,
             name=user.full_name,
             metadata={
-            "userId": str(user.id),
-        }
+                "userId": str(user.id),
+            }
         )
         return customer.id
     except stripe.error.StripeError as e:
