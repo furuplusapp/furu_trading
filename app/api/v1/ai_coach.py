@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Dict, Any
 from openai import OpenAI
+from datetime import date
 from app.core.database import get_db
 from app.api.dependencies import get_current_user
 from app.models.user import User
@@ -23,6 +24,12 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+    daily_queries_used: int
+    daily_queries_limit: int
+
+class QueryCountResponse(BaseModel):
+    daily_queries_used: int
+    daily_queries_limit: int
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_ai_coach(
@@ -34,11 +41,23 @@ async def chat_with_ai_coach(
     Chat with AI Trading Assistant
     """
     try:
+        today = date.today()
+        
+        # Reset daily queries if it's a new day
+        if current_user.last_query_date != today:
+            current_user.daily_queries_used = 0
+            current_user.last_query_date = today
+        
         # Check if user has reached query limit for free plan
         if current_user.plan == "free":
-            # You might want to implement daily query tracking here
-            # For now, we'll allow unlimited queries
-            pass
+            daily_limit = 5
+            if current_user.daily_queries_used >= daily_limit:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"Daily query limit reached ({daily_limit} queries per day). Upgrade to Pro for unlimited access."
+                )
+        else:
+            daily_limit = 999999  # Unlimited for paid plans
         
         # Prepare messages for OpenAI
         messages = []
@@ -87,7 +106,49 @@ Remember: This is for educational purposes. Always advise users to do their own 
         
         ai_reply = response.choices[0].message.content
         
-        return ChatResponse(reply=ai_reply)
+        # Increment daily query count
+        current_user.daily_queries_used += 1
+        db.commit()
+        
+        return ChatResponse(
+            reply=ai_reply,
+            daily_queries_used=current_user.daily_queries_used,
+            daily_queries_limit=daily_limit
+        )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}"
+        )
+
+@router.get("/query-count", response_model=QueryCountResponse)
+async def get_daily_query_count(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get current daily query count for the user
+    """
+    try:
+        today = date.today()
+        
+        # Reset daily queries if it's a new day
+        if current_user.last_query_date != today:
+            current_user.daily_queries_used = 0
+            current_user.last_query_date = today
+            db.commit()
+        
+        # Set daily limit based on plan
+        if current_user.plan == "free":
+            daily_limit = 5
+        else:
+            daily_limit = 999999  # Unlimited for paid plans
+        
+        return QueryCountResponse(
+            daily_queries_used=current_user.daily_queries_used,
+            daily_queries_limit=daily_limit
+        )
         
     except Exception as e:
         raise HTTPException(
