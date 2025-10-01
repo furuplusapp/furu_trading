@@ -4,10 +4,14 @@ from pydantic import BaseModel
 from typing import List, Dict, Any
 from openai import OpenAI
 from datetime import date
+import hashlib
 from app.core.database import get_db
 from app.api.dependencies import get_current_user
 from app.models.user import User
 from app.core.config import settings
+from app.core.redis import RedisCache, get_ai_response_cache_key, get_user_cache_key
+from app.core.rate_limiter import RateLimiter
+from app.tasks.ai_processing import process_ai_request_async
 
 router = APIRouter()
 
@@ -26,6 +30,8 @@ class ChatResponse(BaseModel):
     reply: str
     daily_queries_used: int
     daily_queries_limit: int
+    from_cache: bool = False
+    task_id: str = None
 
 class QueryCountResponse(BaseModel):
     daily_queries_used: int
@@ -38,34 +44,79 @@ async def chat_with_ai_coach(
     db: Session = Depends(get_db)
 ):
     """
-    Chat with AI Trading Assistant
+    Chat with AI Trading Assistant with Redis caching and rate limiting
     """
     try:
-        today = date.today()
+        # Check rate limiting (10 requests per minute)
+        is_allowed, rate_info = RateLimiter.check_rate_limit(
+            user_id=current_user.id,
+            endpoint="ai_chat",
+            limit=10,
+            window_seconds=60
+        )
         
-        # Reset daily queries if it's a new day
-        if current_user.last_query_date != today:
-            current_user.daily_queries_used = 0
-            current_user.last_query_date = today
+        if not is_allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Rate limit exceeded. Try again in {rate_info['reset_time']}"
+            )
         
-        # Check if user has reached query limit for free plan
-        if current_user.plan == "free":
-            daily_limit = 5
-            if current_user.daily_queries_used >= daily_limit:
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=f"Daily query limit reached ({daily_limit} queries per day). Upgrade to Pro for unlimited access."
-                )
-        else:
-            daily_limit = 999999  # Unlimited for paid plans
+        # Check daily query limit using Redis
+        is_allowed, query_info = RateLimiter.check_daily_queries(
+            user_id=current_user.id,
+            plan=current_user.plan
+        )
         
-        # Prepare messages for OpenAI
-        messages = []
+        if not is_allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Daily query limit reached ({query_info['daily_limit']} queries per day). Upgrade to Pro for unlimited access."
+            )
         
-        # Add system message for trading context
-        system_message = {
-            "role": "system",
-            "content": """You are an expert AI Trading Assistant specializing in financial markets, trading strategies, risk management, and portfolio optimization. 
+        # Create messages hash for caching
+        messages_str = str([{"role": msg.role, "content": msg.content} for msg in request.messages])
+        messages_hash = hashlib.md5(messages_str.encode()).hexdigest()
+        
+        # Check cache first
+        cache_key = get_ai_response_cache_key(current_user.id, messages_hash)
+        cached_response = RedisCache.get(cache_key)
+        
+        if cached_response:
+            return ChatResponse(
+                reply=cached_response['reply'],
+                daily_queries_used=query_info['used'],
+                daily_queries_limit=query_info['daily_limit'],
+                from_cache=True
+            )
+        
+        # Process AI request asynchronously
+        task = process_ai_request_async.delay(
+            messages=[{"role": msg.role, "content": msg.content} for msg in request.messages],
+            user_id=current_user.id,
+            plan=current_user.plan
+        )
+        
+        # Wait for task completion (with timeout)
+        try:
+            result = task.get(timeout=30)  # 30 second timeout
+            return ChatResponse(
+                reply=result['reply'],
+                daily_queries_used=query_info['used'],
+                daily_queries_limit=query_info['daily_limit'],
+                from_cache=result.get('from_cache', False),
+                task_id=result.get('task_id')
+            )
+        except Exception as task_error:
+            # Fallback to synchronous processing if Celery fails
+            print(f"Celery task failed, falling back to sync: {task_error}")
+            
+            # Prepare messages for OpenAI
+            messages = []
+            
+            # Add system message for trading context
+            system_message = {
+                "role": "system",
+                "content": """You are an expert AI Trading Assistant specializing in financial markets, trading strategies, risk management, and portfolio optimization. 
 
 RESPONSE STYLE:
 - Keep responses SHORT and CONCISE (2-4 sentences maximum)
@@ -88,34 +139,36 @@ IMPORTANT:
 - Be brief unless user requests detailed information
 
 Remember: This is for educational purposes. Always advise users to do their own research and consider their risk tolerance."""
-        }
-        messages.append(system_message)
+            }
+            messages.append(system_message)
+            
+            # Add conversation history
+            for msg in request.messages:
+                messages.append({
+                    "role": msg.role,
+                    "content": msg.content
+                })
+            
+            # Call OpenAI API
+            response = client.chat.completions.create(
+                model="gpt-4o-mini-search-preview",
+                messages=messages,
+            )
+            
+            ai_reply = response.choices[0].message.content
+            
+            # Cache the response
+            RedisCache.set(cache_key, {'reply': ai_reply}, expire=3600)
+            
+            return ChatResponse(
+                reply=ai_reply,
+                daily_queries_used=query_info['used'],
+                daily_queries_limit=query_info['daily_limit'],
+                from_cache=False
+            )
         
-        # Add conversation history
-        for msg in request.messages:
-            messages.append({
-                "role": msg.role,
-                "content": msg.content
-            })
-        
-        # Call OpenAI API
-        response = client.chat.completions.create(
-            model="gpt-4o-mini-search-preview",  # or "gpt-3.5-turbo" for cost efficiency
-            messages=messages,
-        )
-        
-        ai_reply = response.choices[0].message.content
-        
-        # Increment daily query count
-        current_user.daily_queries_used += 1
-        db.commit()
-        
-        return ChatResponse(
-            reply=ai_reply,
-            daily_queries_used=current_user.daily_queries_used,
-            daily_queries_limit=daily_limit
-        )
-        
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -128,26 +181,18 @@ async def get_daily_query_count(
     db: Session = Depends(get_db)
 ):
     """
-    Get current daily query count for the user
+    Get current daily query count for the user using Redis
     """
     try:
-        today = date.today()
-        
-        # Reset daily queries if it's a new day
-        if current_user.last_query_date != today:
-            current_user.daily_queries_used = 0
-            current_user.last_query_date = today
-            db.commit()
-        
-        # Set daily limit based on plan
-        if current_user.plan == "free":
-            daily_limit = 5
-        else:
-            daily_limit = 999999  # Unlimited for paid plans
+        # Get daily query count from Redis
+        is_allowed, query_info = RateLimiter.check_daily_queries(
+            user_id=current_user.id,
+            plan=current_user.plan
+        )
         
         return QueryCountResponse(
-            daily_queries_used=current_user.daily_queries_used,
-            daily_queries_limit=daily_limit
+            daily_queries_used=query_info['used'],
+            daily_queries_limit=query_info['daily_limit']
         )
         
     except Exception as e:

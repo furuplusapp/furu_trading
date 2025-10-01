@@ -4,6 +4,7 @@ from app.core.database import get_db
 from app.crud.user import get_user_by_id, update_user_plan, get_user_by_stripe_customer_id, update_user
 from app.schemas.auth import UserResponse, UserUpdate
 from app.api.dependencies import get_current_user
+from app.core.redis import RedisCache, get_user_cache_key
 from pydantic import BaseModel
 from typing import Optional
 
@@ -20,8 +21,34 @@ class UpdatePlanRequest(BaseModel):
 async def get_current_user_endpoint(
     current_user = Depends(get_current_user)
 ):
-    """Get current user information"""
-    return current_user
+    """Get current user information with Redis caching"""
+    try:
+        # Check cache first
+        cache_key = get_user_cache_key(current_user.id)
+        cached_user = RedisCache.get(cache_key)
+        
+        if cached_user:
+            return UserResponse(**cached_user)
+        
+        # Cache user data for 15 minutes
+        user_data = {
+            "id": current_user.id,
+            "email": current_user.email,
+            "full_name": current_user.full_name,
+            "is_active": current_user.is_active,
+            "is_verified": current_user.is_verified,
+            "plan": current_user.plan,
+            "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+            "last_login": current_user.last_login.isoformat() if current_user.last_login else None
+        }
+        
+        RedisCache.set(cache_key, user_data, expire=900)  # 15 minutes
+        
+        return current_user
+        
+    except Exception as e:
+        # Fallback to direct user data if caching fails
+        return current_user
 
 
 @router.put("/{user_id}", response_model=UserResponse)
@@ -60,6 +87,11 @@ async def update_user_endpoint(
             )
         
         print(f"User updated successfully: {updated_user.id}")
+        
+        # Invalidate user cache
+        cache_key = get_user_cache_key(user_id)
+        RedisCache.delete(cache_key)
+        
         return updated_user
         
     except Exception as e:
