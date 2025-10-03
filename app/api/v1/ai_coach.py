@@ -1,17 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import List, Dict, Any
+from typing import List, Dict
 from openai import OpenAI
-from datetime import date
 import hashlib
 from app.core.database import get_db
 from app.api.dependencies import get_current_user
 from app.models.user import User
 from app.core.config import settings
-from app.core.redis import RedisCache, get_ai_response_cache_key, get_user_cache_key
+from app.core.redis import RedisCache, get_ai_response_cache_key
 from app.core.rate_limiter import RateLimiter
 from app.tasks.ai_processing import process_ai_request_async
+from app.services.chart_analysis import chart_analysis_service
+from typing import Optional
 
 router = APIRouter()
 
@@ -32,6 +33,7 @@ class ChatResponse(BaseModel):
     daily_queries_limit: int
     from_cache: bool = False
     task_id: str = None
+    chart_update: Optional[Dict] = None
 
 class QueryCountResponse(BaseModel):
     daily_queries_used: int
@@ -61,17 +63,21 @@ async def chat_with_ai_coach(
                 detail=f"Rate limit exceeded. Try again in {rate_info['reset_time']}"
             )
         
-        # Check daily query limit using Redis
-        is_allowed, query_info = RateLimiter.check_daily_queries(
+        # Check daily query limit using Redis (without incrementing yet)
+        query_info = RateLimiter.get_daily_queries_info(
             user_id=current_user.id,
             plan=current_user.plan
         )
         
-        if not is_allowed:
+        if query_info['used'] >= query_info['daily_limit']:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Daily query limit reached ({query_info['daily_limit']} queries per day). Upgrade to Pro for unlimited access."
             )
+        
+        # Analyze the latest message for chart updates (using rule-based analysis to avoid extra API calls)
+        latest_message = request.messages[-1].content if request.messages else ""
+        chart_analysis = chart_analysis_service.analyze_query(latest_message)
         
         # Create messages hash for caching
         messages_str = str([{"role": msg.role, "content": msg.content} for msg in request.messages])
@@ -82,11 +88,13 @@ async def chat_with_ai_coach(
         cached_response = RedisCache.get(cache_key)
         
         if cached_response:
+            # For cached responses, we don't increment the daily query count
             return ChatResponse(
                 reply=cached_response['reply'],
                 daily_queries_used=query_info['used'],
                 daily_queries_limit=query_info['daily_limit'],
-                from_cache=True
+                from_cache=True,
+                chart_update=chart_analysis if chart_analysis['needs_chart_update'] else None
             )
         
         # Process AI request asynchronously
@@ -99,12 +107,23 @@ async def chat_with_ai_coach(
         # Wait for task completion (with timeout)
         try:
             result = task.get(timeout=30)  # 30 second timeout
+            
+            # Only increment daily query count if this is not a cached response
+            if not result.get('from_cache', False):
+                # Increment daily query count after successful AI processing
+                is_allowed, updated_query_info = RateLimiter.check_daily_queries(
+                    user_id=current_user.id,
+                    plan=current_user.plan
+                )
+                query_info = updated_query_info
+            
             return ChatResponse(
                 reply=result['reply'],
                 daily_queries_used=query_info['used'],
                 daily_queries_limit=query_info['daily_limit'],
                 from_cache=result.get('from_cache', False),
-                task_id=result.get('task_id')
+                task_id=result.get('task_id'),
+                chart_update=chart_analysis if chart_analysis['needs_chart_update'] else None
             )
         except Exception as task_error:
             # Fallback to synchronous processing if Celery fails
@@ -151,7 +170,7 @@ Remember: This is for educational purposes. Always advise users to do their own 
             
             # Call OpenAI API
             response = client.chat.completions.create(
-                model="gpt-4o-mini-search-preview",
+                model="gpt-5-nano",
                 messages=messages,
             )
             
@@ -160,11 +179,18 @@ Remember: This is for educational purposes. Always advise users to do their own 
             # Cache the response
             RedisCache.set(cache_key, {'reply': ai_reply}, expire=3600)
             
+            # Increment daily query count after successful AI processing
+            is_allowed, updated_query_info = RateLimiter.check_daily_queries(
+                user_id=current_user.id,
+                plan=current_user.plan
+            )
+            
             return ChatResponse(
                 reply=ai_reply,
-                daily_queries_used=query_info['used'],
-                daily_queries_limit=query_info['daily_limit'],
-                from_cache=False
+                daily_queries_used=updated_query_info['used'],
+                daily_queries_limit=updated_query_info['daily_limit'],
+                from_cache=False,
+                chart_update=chart_analysis if chart_analysis['needs_chart_update'] else None
             )
         
     except HTTPException:
@@ -181,11 +207,11 @@ async def get_daily_query_count(
     db: Session = Depends(get_db)
 ):
     """
-    Get current daily query count for the user using Redis
+    Get current daily query count for the user using Redis (without incrementing)
     """
     try:
-        # Get daily query count from Redis
-        is_allowed, query_info = RateLimiter.check_daily_queries(
+        # Get daily query count from Redis without incrementing
+        query_info = RateLimiter.get_daily_queries_info(
             user_id=current_user.id,
             plan=current_user.plan
         )

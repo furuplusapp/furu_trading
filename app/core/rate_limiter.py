@@ -63,9 +63,53 @@ class RateLimiter:
             }
     
     @staticmethod
+    def get_daily_queries_info(user_id: int, plan: str) -> dict:
+        """
+        Get daily query information without incrementing counter
+        
+        Args:
+            user_id: User ID
+            plan: User's plan (free, pro, elite)
+            
+        Returns:
+            dict: query_info
+        """
+        try:
+            # Set daily limits based on plan
+            if plan == "free":
+                daily_limit = 5
+            elif plan == "pro":
+                daily_limit = 100
+            elif plan == "elite":
+                daily_limit = 1000
+            else:
+                daily_limit = 5  # Default to free plan
+            
+            key = get_daily_queries_key(user_id)
+            current_count = RedisCache.get(key) or 0
+            
+            return {
+                'daily_limit': daily_limit,
+                'used': current_count,
+                'remaining': max(0, daily_limit - current_count),
+                'reset_time': datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+            }
+            
+        except Exception as e:
+            print(f"Get daily queries info error: {e}")
+            # Return conservative info if Redis is down - assume user has used all queries
+            return {
+                'daily_limit': daily_limit,
+                'used': daily_limit,  # Conservative: assume limit reached
+                'remaining': 0,
+                'reset_time': datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1),
+                'error': 'Daily queries check failed - Redis unavailable'
+            }
+
+    @staticmethod
     def check_daily_queries(user_id: int, plan: str) -> tuple[bool, dict]:
         """
-        Check daily query limit for AI chat
+        Check daily query limit for AI chat and increment counter if allowed
         
         Args:
             user_id: User ID
@@ -116,14 +160,14 @@ class RateLimiter:
             
         except Exception as e:
             print(f"Daily queries check error: {e}")
-            # Allow request if Redis is down
-            return True, {
-                'allowed': True,
+            # Conservative approach: deny request if Redis is down
+            return False, {
+                'allowed': False,
                 'daily_limit': daily_limit,
-                'used': 1,
-                'remaining': daily_limit - 1,
+                'used': daily_limit,  # Conservative: assume limit reached
+                'remaining': 0,
                 'reset_time': datetime.now().replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1),
-                'error': 'Daily queries check failed, allowing request'
+                'error': 'Daily queries check failed - Redis unavailable'
             }
     
     @staticmethod
