@@ -170,7 +170,7 @@ Remember: This is for educational purposes. Always advise users to do their own 
             
             # Call OpenAI API
             response = client.chat.completions.create(
-                model="gpt-5-nano",
+                model="gpt-4o-mini-search-preview",
                 messages=messages,
             )
             

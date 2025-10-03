@@ -11,7 +11,7 @@ class ChartAnalysisService:
     def __init__(self):
         self.chart_keywords = {
             'indicators': ['rsi', 'macd', 'bollinger', 'sma', 'ema', 'stochastic', 'williams', 'cci', 'atr'],
-            'symbols': ['aapl', 'msft', 'googl', 'amzn', 'tsla', 'nvda', 'meta', 'nflx', 'spy', 'qqq', 'djx', 'djia', 'ixic', 'spx', 'russell', 'dow', 'nasdaq', 's&p', 'nasdaq100', 'nasdaqcomposite', 'nasdaq100tr', 'nasdaq100tr'],
+            'symbols': ['aapl', 'msft', 'googl', 'amzn', 'tsla', 'nvda', 'meta', 'nflx', 'spy', 'qqq', 'djx', 'djia', 'ixic', 'spx', 'russell', 'dow', 'nasdaq', 's&p', 'nasdaq100', 'nasdaqcomposite', 'nasdaq100tr', 'btc', 'eth', 'xrp', 'doge', 'sol', 'ada', 'dot', 'link', 'uni', 'ltc', 'xlm', 'xmr', 'xem', 'xag', 'xau', 'xpd', 'xpt', 'xpf', 'xpb', 'xpg', 'xpm', 'xpn', 'xpo', 'xpp', 'xpq', 'xpr', 'xps', 'xpu', 'btcusd', 'ethusd', 'btcusdt', 'ethusdt', 'btcusdc', 'ethusdc'],
             'timeframes': ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1M', '3M', '6M', '1Y'],
             'chart_types': ['candlestick', 'line', 'bar', 'area', 'heikin ashi'],
             'patterns': ['support', 'resistance', 'trend', 'breakout', 'reversal', 'triangle', 'head and shoulders']
@@ -123,7 +123,7 @@ class ChartAnalysisService:
         # Set symbol
         if extracted_info['symbols']:
             symbol = extracted_info['symbols'][0]
-            config['symbol'] = f'NASDAQ:{symbol}' if symbol in ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'META', 'NFLX', 'DJX'] else f'NASDAQ:{symbol}'
+            config['symbol'] = f'NASDAQ:{symbol}' if symbol in ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'META', 'NFLX', 'DJX', 'BTC', 'ETH', 'XRP', 'DOGE', 'SOL', 'ADA', 'DOT', 'LINK', 'UNI', 'LTC', 'XLM', 'XMR', 'XEM', 'XAG', 'XAU', 'XPD', 'XPT', 'XPF', 'XPB', 'XPG', 'XPM', 'XPN', 'XPO', 'XPP', 'XPQ', 'XPR', 'XPS', 'XPT', 'XPU', 'XPQ', 'XPR', 'XPS', 'XPT', 'XPU'] else f'NASDAQ:{symbol}'
         
         # Set interval
         if extracted_info['timeframes']:

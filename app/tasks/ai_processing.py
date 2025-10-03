@@ -86,7 +86,7 @@ This is for educational purposes only. Always recommend users to do their own re
         
         # Call OpenAI API
         response = client.chat.completions.create(
-            model="gpt-5-nano",
+            model="gpt-4o-mini-search-preview",
             messages=openai_messages,
         )
         
