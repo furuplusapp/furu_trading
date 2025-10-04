@@ -123,7 +123,7 @@ class ChartAnalysisService:
         # Set symbol
         if extracted_info['symbols']:
             symbol = extracted_info['symbols'][0]
-            config['symbol'] = f'NASDAQ:{symbol}' if symbol in ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'META', 'NFLX', 'SPY', 'QQQ', 'DJX', 'DJIA', 'IXIC', 'SPX', 'Russell', 'Dow', 'Nasdaq', 'S&P', 'Nasdaq100', 'NasdaqComposite', 'Nasdaq100TR', 'BTCUSD', 'ETHUSD', 'BTCUSDT', 'ETHUSDT', 'BTCUSDC', 'ETHUSDC'] else f'NASDAQ:{symbol}'
+            config['symbol'] = symbol if symbol in ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'NVDA', 'META', 'NFLX', 'SPY', 'QQQ', 'DJX', 'DJIA', 'IXIC', 'SPX', 'Russell', 'Dow', 'Nasdaq', 'S&P', 'Nasdaq100', 'NasdaqComposite', 'Nasdaq100TR', 'BTCUSD', 'ETHUSD', 'BTCUSDT', 'ETHUSDT', 'BTCUSDC', 'ETHUSDC'] else f'NASDAQ:{symbol}'
         
         # Set interval
         if extracted_info['timeframes']:
