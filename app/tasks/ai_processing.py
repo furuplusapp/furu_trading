@@ -106,36 +106,3 @@ This is for educational purposes only. Always recommend users to do their own re
     except Exception as e:
         self.update_state(state='FAILURE', meta={'status': f'Error: {str(e)}'})
         raise e
-
-@celery_app.task
-def cleanup_expired_cache():
-    """
-    Clean up expired cache entries (run daily)
-    """
-    try:
-        # This would typically be handled by Redis TTL, but we can add custom cleanup logic here
-        print("Cache cleanup task completed")
-        return {"status": "success", "message": "Cache cleanup completed"}
-    except Exception as e:
-        print(f"Cache cleanup error: {e}")
-        raise e
-
-@celery_app.task
-def update_user_analytics(user_id: int, action: str, metadata: Dict[str, Any] = None):
-    """
-    Update user analytics in background
-    """
-    try:
-        # Store analytics data
-        analytics_key = f"analytics:{user_id}:{action}"
-        RedisCache.set(analytics_key, {
-            'user_id': user_id,
-            'action': action,
-            'metadata': metadata or {},
-            'timestamp': RedisCache.get('current_timestamp') or 'unknown'
-        }, expire=86400)  # 24 hours
-        
-        return {"status": "success", "message": "Analytics updated"}
-    except Exception as e:
-        print(f"Analytics update error: {e}")
-        raise e
