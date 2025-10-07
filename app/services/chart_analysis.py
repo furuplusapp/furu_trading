@@ -37,18 +37,6 @@ class ChartAnalysisService:
             'avalanche': 'BINANCE:AVAXUSD', 'avax': 'BINANCE:AVAXUSD', 'avaxusd': 'BINANCE:AVAXUSD', 'avaxusdt': 'BINANCE:AVAXUSDT',
             'polygon': 'BINANCE:MATICUSD', 'matic': 'BINANCE:MATICUSD', 'maticusd': 'BINANCE:MATICUSD', 'maticusdt': 'BINANCE:MATICUSDT',
             'shiba inu': 'BINANCE:SHIBUSD', 'shib': 'BINANCE:SHIBUSD', 'shibusd': 'BINANCE:SHIBUSD', 'shibusdt': 'BINANCE:SHIBUSDT',
-            'ethjp': 'BINANCE:ETHJPY', 'ethjpy': 'BINANCE:ETHJPY', 'eth/jpy': 'BINANCE:ETHJPY', 'eth-jpy': 'BINANCE:ETHJPY',
-            'ethgbp': 'BINANCE:ETHGBP', 'ethgbp': 'BINANCE:ETHGBP', 'eth/gbp': 'BINANCE:ETHGBP', 'eth-gbp': 'BINANCE:ETHGBP',
-            'ethcad': 'BINANCE:ETHCAD', 'ethcad': 'BINANCE:ETHCAD', 'eth/cad': 'BINANCE:ETHCAD', 'eth-cad': 'BINANCE:ETHCAD',
-            'ethnzd': 'BINANCE:ETHNZD', 'ethnzd': 'BINANCE:ETHNZD', 'eth/nzd': 'BINANCE:ETHNZD', 'eth-nzd': 'BINANCE:ETHNZD',
-            'ethaud': 'BINANCE:ETHAUD', 'ethaud': 'BINANCE:ETHAUD', 'eth/aud': 'BINANCE:ETHAUD', 'eth-aud': 'BINANCE:ETHAUD',
-            'ethchf': 'BINANCE:ETHCHF', 'ethchf': 'BINANCE:ETHCHF', 'eth/chf': 'BINANCE:ETHCHF', 'eth-chf': 'BINANCE:ETHCHF',
-            'ethgbp': 'BINANCE:ETHGBP', 'ethgbp': 'BINANCE:ETHGBP', 'ethgbp': 'BINANCE:ETHGBP', 'ethgbp': 'BINANCE:ETHGBP',
-            'ethcad': 'BINANCE:ETHCAD', 'ethcad': 'BINANCE:ETHCAD', 'ethcad': 'BINANCE:ETHCAD', 'ethcad': 'BINANCE:ETHCAD',
-            'ethnzd': 'BINANCE:ETHNZD', 'ethnzd': 'BINANCE:ETHNZD', 'ethnzd': 'BINANCE:ETHNZD', 'ethnzd': 'BINANCE:ETHNZD',
-            'ethaud': 'BINANCE:ETHAUD', 'ethaud': 'BINANCE:ETHAUD', 'ethaud': 'BINANCE:ETHAUD', 'ethaud': 'BINANCE:ETHAUD', 
-            'ethchf': 'BINANCE:ETHCHF', 'ethchf': 'BINANCE:ETHCHF', 'ethchf': 'BINANCE:ETHCHF', 'ethchf': 'BINANCE:ETHCHF',
-            'ethgbp': 'BINANCE:ETHGBP', 'ethgbp': 'BINANCE:ETHGBP', 'ethgbp': 'BINANCE:ETHGBP', 'ethgbp': 'BINANCE:ETHGBP',
             
             # Major US Stocks
             'apple': 'NASDAQ:AAPL', 'aapl': 'NASDAQ:AAPL',
@@ -126,6 +114,15 @@ class ChartAnalysisService:
             'audusd': 'FX:AUDUSD', 'aud usd': 'FX:AUDUSD', 'australian dollar': 'FX:AUDUSD',
             'usdcad': 'FX:USDCAD', 'usd cad': 'FX:USDCAD', 'canadian dollar': 'FX:USDCAD',
             'nzdusd': 'FX:NZDUSD', 'nzd usd': 'FX:NZDUSD', 'new zealand dollar': 'FX:NZDUSD',
+            'usdcnh': 'FX:USDCNH', 'usd renminbi': 'FX:USDCNH', 'renminbi': 'FX:USDCNH',
+            'usdzar': 'FX:USDZAR', 'usd south african rand': 'FX:USDZAR', 'south african rand': 'FX:USDZAR',
+            'usdjpy': 'FX:USDJPY', 'usd yen': 'FX:USDJPY', 'yen': 'FX:USDJPY',
+            'usdcad': 'FX:USDCAD', 'usd canadian dollar': 'FX:USDCAD', 'canadian dollar': 'FX:USDCAD',
+            'usdtwd': 'FX:USDTWD', 'usd taiwan dollar': 'FX:USDTWD', 'taiwan dollar': 'FX:USDTWD',
+            'usdthb': 'FX:USDTHB', 'usd thai baht': 'FX:USDTHB', 'thai baht': 'FX:USDTHB',
+            'usdnok': 'FX:USDNOK', 'usd norwegian krone': 'FX:USDNOK', 'norwegian krone': 'FX:USDNOK',
+            'usdkrw': 'FX:USDKRW', 'usd korean won': 'FX:USDKRW', 'korean won': 'FX:USDKRW',
+            'usdsgd': 'FX:USDSGD', 'usd singapore dollar': 'FX:USDSGD', 'singapore dollar': 'FX:USDSGD',
             
             # Major Futures
             'sp500 futures': 'CME:ES1!', 'es futures': 'CME:ES1!',
@@ -142,14 +139,149 @@ class ChartAnalysisService:
             'euro futures': 'CME:6E1!', '6e futures': 'CME:6E1!',
             'yen futures': 'CME:6J1!', '6j futures': 'CME:6J1!',
             'pound futures': 'CME:6B1!', '6b futures': 'CME:6B1!',
+            'australian dollar futures': 'CME:6A1!', '6a futures': 'CME:6A1!',
+            'new zealand dollar futures': 'CME:6N1!', '6n futures': 'CME:6N1!',
+            'swiss franc futures': 'CME:6F1!', '6f futures': 'CME:6F1!',
+            'japanese yen futures': 'CME:6J1!', '6j futures': 'CME:6J1!',
+            'indonesian rupiah futures': 'CME:6I1!', '6i futures': 'CME:6I1!',
+            'indian rupee futures': 'CME:6R1!', '6r futures': 'CME:6R1!',
+            'south african rand futures': 'CME:6Z1!', '6z futures': 'CME:6Z1!',
+            'brazilian real futures': 'CME:6B1!', '6b futures': 'CME:6B1!',
+            'chinese yuan futures': 'CME:6C1!', '6c futures': 'CME:6C1!',
             
             # Major Options (SPY, QQQ, AAPL, TSLA, etc.)
             'spy options': 'AMEX:SPY', 'qqq options': 'NASDAQ:QQQ',
             'aapl options': 'NASDAQ:AAPL', 'tsla options': 'NASDAQ:TSLA',
             'nvda options': 'NASDAQ:NVDA', 'msft options': 'NASDAQ:MSFT',
             'amzn options': 'NASDAQ:AMZN', 'googl options': 'NASDAQ:GOOGL',
-            'meta options': 'NASDAQ:META', 'nflx options': 'NASDAQ:NFLX'
+            'meta options': 'NASDAQ:META', 'nflx options': 'NASDAQ:NFLX',
+            'brk.a options': 'NYSE:BRK.A', 'brk.b options': 'NYSE:BRK.B',
+            'jnj options': 'NYSE:JNJ', 'pg options': 'NYSE:PG',
+            'jpm options': 'NYSE:JPM', 'v options': 'NYSE:V',
+            'ma options': 'NYSE:MA', 'hd options': 'NYSE:HD',
+            'wmt options': 'NYSE:WMT', 'ko options': 'NYSE:KO',
+            'pep options': 'NASDAQ:PEP', 'dis options': 'NYSE:DIS',
+            'adbe options': 'NASDAQ:ADBE', 'crm options': 'NYSE:CRM',
+            'orcl options': 'NYSE:ORCL', 'intc options': 'NASDAQ:INTC',
+            'amd options': 'NASDAQ:AMD', 'csco options': 'NASDAQ:CSCO',
+            'ibm options': 'NYSE:IBM', 'pypl options': 'NASDAQ:PYPL',
+            'ubr options': 'NYSE:UBER', 'abnb options': 'NASDAQ:ABNB',
+            'zm options': 'NASDAQ:ZM', 'pltr options': 'NYSE:PLTR',
+            'roku options': 'NASDAQ:ROKU', 'spot options': 'NYSE:SPOT',
+            'twtr options': 'NYSE:TWTR', 'snap options': 'NYSE:SNAP',
+            'pins options': 'NYSE:PINS', 'sq options': 'NYSE:SQ',
+            'shop options': 'NYSE:SHOP'
         }
+    
+    def analyze_query_with_ai(self, query: str, current_state: Dict = None) -> Dict:
+        """Use AI to analyze user query and extract chart updates"""
+        try:
+            response = client.chat.completions.create(
+                model="gpt-5-nano",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": f"""You are a trading chart configuration expert. Analyze user queries and extract chart update information.
+
+CURRENT CHART STATE:
+{current_state if current_state else "No current state (first query)"}
+
+CRITICAL: Only update fields that the user EXPLICITLY mentions. Keep all other fields from current state unchanged.
+
+Output JSON format:
+{
+    "needs_chart_update": boolean,
+    "chart_config": {
+        "symbol": "BINANCE:BTCUSD",
+        "interval": "D",
+        "studies": [],
+        "chart_type": "1"
+    },
+    "extracted_info": {
+        "symbols": ["BINANCE:BTCUSD"],
+        "indicators": ["RSI", "MACD"],
+        "timeframes": ["1h"],
+        "actions": ["add:rsi", "remove:macd", "change:1h"]
+    }
+}
+
+Rules:
+1. Only update fields that user explicitly mentions
+2. Preserve existing settings if not mentioned
+3. Actions format: "add:indicator", "remove:indicator", "change:timeframe", "view:symbol"
+4. Symbol formats (CRITICAL):
+   - Crypto: BINANCE:BTCUSD, BINANCE:ETHUSD
+   - Stocks: NASDAQ:AAPL, NYSE:TSLA
+   - Forex: FX:EURUSD, FX:GBPUSD, FX:USDJPY, FX:AUDUSD
+   - Commodities: OANDA:XAUUSD (gold), NYMEX:CL1! (crude oil)
+   - Indices: AMEX:SPY, NASDAQ:QQQ
+5. Intervals: 1m,5m,15m,30m,1h(60),4h(240),1d(D),1w(W),1M(M)
+6. Chart types: 1=candlestick, 2=line, 3=bar, 4=area, 5=heikin ashi
+7. Indicators: RSI, MACD, BOLLINGER, SMA, EMA, STOCHASTIC, WILLIAMS, CCI, ATR
+8. If no chart update needed (just general question), set needs_chart_update: false
+
+Examples:
+- "Show Bitcoin" → symbol: "BINANCE:BTCUSD", needs_chart_update: true
+- "USD/JPY chart" → symbol: "FX:USDJPY", needs_chart_update: true
+- "Show Apple stock" → symbol: "NASDAQ:AAPL", needs_chart_update: true
+- "Gold price" → symbol: "OANDA:XAUUSD", needs_chart_update: true
+- "Add RSI indicator" → actions: ["add:rsi"], studies: ["STD;RSI"], needs_chart_update: true
+- "Can u add MACD indicator" → actions: ["add:macd"], studies: ["STD;MACD"], needs_chart_update: true
+- "I wanna see RSI" → actions: ["add:rsi"], studies: ["STD;RSI"], needs_chart_update: true
+- "Show me MACD" → actions: ["add:macd"], studies: ["STD;MACD"], needs_chart_update: true
+- "Add RSI and MACD" → actions: ["add:rsi", "add:macd"], studies: ["STD;RSI", "STD;MACD"], needs_chart_update: true
+- "Switch to 1 hour chart" → actions: ["change:1h"], interval: "60", needs_chart_update: true
+- "What is RSI?" → needs_chart_update: false (just explanation, no chart change)
+- "Remove MACD and add Bollinger Bands" → actions: ["remove:macd", "add:bollinger"], needs_chart_update: true
+- "Update chart with USDJPY" → symbol: "FX:USDJPY", needs_chart_update: true
+
+IMPORTANT STATE PRESERVATION:
+- When user wants to ADD an indicator → KEEP existing studies and ADD the new one
+- When user wants to REMOVE an indicator → KEEP other studies, only REMOVE the specified one
+- When user changes symbol → KEEP interval, studies, and chart_type
+- When user changes timeframe → KEEP symbol, studies, and chart_type
+- ONLY update what user explicitly requests, preserve everything else
+
+Studies format: "STD;RSI", "STD;MACD", "STD;BB", "STD;SMA", "STD;EMA", "STD;STOCH", "STD;WPR", "STD;CCI", "STD;ATR"
+
+State Preservation Examples:
+Current: {symbol: "BINANCE:BTCUSD", interval: "D", studies: ["STD;RSI"], chart_type: "1"}
+Query: "Add MACD" → {symbol: "BINANCE:BTCUSD", interval: "D", studies: ["STD;RSI", "STD;MACD"], chart_type: "1"}
+
+Current: {symbol: "FX:USDJPY", interval: "60", studies: ["STD;RSI", "STD;MACD"], chart_type: "1"}
+Query: "Show Ethereum" → {symbol: "BINANCE:ETHUSD", interval: "60", studies: ["STD;RSI", "STD;MACD"], chart_type: "1"}
+
+Current: {symbol: "NASDAQ:AAPL", interval: "D", studies: ["STD;RSI"], chart_type: "1"}
+Query: "Remove RSI" → {symbol: "NASDAQ:AAPL", interval: "D", studies: [], chart_type: "1"}
+
+Return ONLY valid JSON."""
+                    },
+                    {
+                        "role": "user",
+                        "content": query
+                    }
+                ],
+            )
+            
+            ai_response = response.choices[0].message.content.strip()
+            
+            # Parse JSON response
+            import json
+            try:
+                # Find JSON in response
+                json_start = ai_response.find('{')
+                json_end = ai_response.rfind('}') + 1
+                if json_start != -1 and json_end > json_start:
+                    json_str = ai_response[json_start:json_end]
+                    result = json.loads(json_str)
+                    return result
+            except Exception as parse_error:
+                print(f"JSON parse error: {parse_error}, response: {ai_response}")
+                return self.analyze_query(query)  # Fallback to rule-based
+                
+        except Exception as e:
+            print(f"AI chart analysis error: {e}")
+            return self.analyze_query(query)  # Fallback to rule-based
     
     def analyze_query(self, query: str) -> Dict:
         """
@@ -338,7 +470,7 @@ Return only the TradingView symbol, nothing else."""
         config = {
             'symbol': 'BINANCE:BTCUSD',  # Default to Bitcoin
             'interval': 'D',  # Default
-            'studies': ['STD;RSI', 'STD;MACD'],  # Default indicators
+            'studies': [],  # No default indicators - only add what user requests
             'chart_type': '1'  # Default candlestick
         }
         
@@ -390,8 +522,8 @@ Return only the TradingView symbol, nothing else."""
                 'HEIKIN ASHI': '5'
             }
             
-            # Start with default indicators
-            new_studies = ['STD;RSI', 'STD;MACD']
+            # Start with empty studies - only add what user explicitly requests
+            new_studies = []
             
             # Process all actions
             for action in extracted_info['actions']:
@@ -434,7 +566,9 @@ Return only the TradingView symbol, nothing else."""
                 if indicator in study_map and study_map[indicator] not in new_studies:
                     new_studies.append(study_map[indicator])
             
-            config['studies'] = new_studies
+            # Only update studies if user explicitly requested indicators
+            if new_studies or extracted_info['indicators'] or any(a.startswith('add:') or a.startswith('remove:') for a in extracted_info['actions']):
+                config['studies'] = new_studies
         
         return config
     
@@ -476,7 +610,6 @@ Respond with JSON format:
                         "content": query
                     }
                 ],
-                temperature=0.1
             )
             
             # Parse AI response

@@ -26,6 +26,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
     plan: str
+    current_chart_config: Optional[Dict] = None
 
 class ChatResponse(BaseModel):
     reply: str
@@ -75,9 +76,15 @@ async def chat_with_ai_coach(
                 detail=f"Daily query limit reached ({query_info['daily_limit']} queries per day). Upgrade to Pro for unlimited access."
             )
         
-        # Analyze the latest message for chart updates (using rule-based analysis to avoid extra API calls)
+        # Analyze the latest message for chart updates (using AI for intelligent extraction)
         latest_message = request.messages[-1].content if request.messages else ""
-        chart_analysis = chart_analysis_service.analyze_query(latest_message)
+        current_chart_state = request.current_chart_config if request.current_chart_config else None
+        chart_analysis = chart_analysis_service.analyze_query_with_ai(latest_message, current_chart_state)
+        
+        # Debug logging
+        if chart_analysis.get('needs_chart_update'):
+            print(f"[Chart Update] User {current_user.id}: Current: {current_chart_state}")
+            print(f"[Chart Update] User {current_user.id}: New: {chart_analysis.get('chart_config')}")
         
         # Create messages hash for caching
         messages_str = str([{"role": msg.role, "content": msg.content} for msg in request.messages])
@@ -108,6 +115,10 @@ async def chat_with_ai_coach(
         try:
             result = task.get(timeout=30)  # 30 second timeout
             
+            # Validate result structure
+            if not isinstance(result, dict) or 'reply' not in result:
+                raise ValueError(f"Invalid Celery task result structure: {result}")
+            
             # Only increment daily query count if this is not a cached response
             if not result.get('from_cache', False):
                 # Increment daily query count after successful AI processing
@@ -115,7 +126,10 @@ async def chat_with_ai_coach(
                     user_id=current_user.id,
                     plan=current_user.plan
                 )
-                query_info = updated_query_info
+                # Update query_info with new counts
+                query_info.update(updated_query_info)
+            
+            print(f"[AI Coach] User {current_user.id}: Celery task completed successfully. From cache: {result.get('from_cache', False)}. Daily queries: {query_info['used']}/{query_info['daily_limit']}")
             
             return ChatResponse(
                 reply=result['reply'],
@@ -184,6 +198,8 @@ Remember: This is for educational purposes. Always advise users to do their own 
                 user_id=current_user.id,
                 plan=current_user.plan
             )
+            
+            print(f"[AI Coach] User {current_user.id}: Sync fallback completed. Daily queries: {updated_query_info['used']}/{updated_query_info['daily_limit']}")
             
             return ChatResponse(
                 reply=ai_reply,

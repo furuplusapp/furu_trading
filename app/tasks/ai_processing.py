@@ -26,7 +26,7 @@ def process_ai_request_async(self, messages: List[Dict[str, str]], user_id: int,
         cached_response = RedisCache.get(cache_key)
         
         if cached_response:
-            self.update_state(state='SUCCESS', meta={'status': 'Retrieved from cache'})
+            # Don't call update_state - it will override the return value
             return {
                 'reply': cached_response['reply'],
                 'from_cache': True,
@@ -95,7 +95,8 @@ This is for educational purposes only. Always recommend users to do their own re
         # Cache the response for 1 hour
         RedisCache.set(cache_key, {'reply': ai_reply}, expire=3600)
         
-        self.update_state(state='SUCCESS', meta={'status': 'AI processing completed'})
+        # Don't call update_state with SUCCESS - it will override the return value
+        # The task will automatically be marked as SUCCESS when it returns
         
         return {
             'reply': ai_reply,
