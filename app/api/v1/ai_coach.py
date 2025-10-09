@@ -26,7 +26,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
     plan: str
-    current_chart_config: Optional[Dict] = None
+    chart_state: Optional[Dict] = None  # Current chart configuration for state preservation
 
 class ChatResponse(BaseModel):
     reply: str
@@ -76,15 +76,39 @@ async def chat_with_ai_coach(
                 detail=f"Daily query limit reached ({query_info['daily_limit']} queries per day). Upgrade to Pro for unlimited access."
             )
         
+        # Get current chart state from request for state preservation and context
+        current_chart_state = request.chart_state
+        
+        # Debug logging - show current state
+        if current_chart_state:
+            print(f"[Chart State] User {current_user.id} current state: {current_chart_state}")
+        
         # Analyze the latest message for chart updates (using AI for intelligent extraction)
         latest_message = request.messages[-1].content if request.messages else ""
-        current_chart_state = request.current_chart_config if request.current_chart_config else None
         chart_analysis = chart_analysis_service.analyze_query_with_ai(latest_message, current_chart_state)
         
-        # Debug logging
+        # Add current chart context to the AI messages for context-aware responses
+        chart_context = ""
+        if current_chart_state:
+            symbol = current_chart_state.get('symbol', 'Unknown')
+            interval = current_chart_state.get('interval', 'D')
+            studies = current_chart_state.get('studies', [])
+            
+            # Convert interval code to readable format
+            interval_map = {'1': '1m', '5': '5m', '15': '15m', '30': '30m', '60': '1h', '240': '4h', 'D': 'daily', 'W': 'weekly', 'M': 'monthly'}
+            interval_readable = interval_map.get(interval, interval)
+            
+            # Convert studies to readable format
+            studies_readable = []
+            if studies:
+                study_map = {'STD;RSI': 'RSI', 'STD;MACD': 'MACD', 'STD;BB': 'Bollinger Bands', 'STD;SMA': 'SMA', 'STD;EMA': 'EMA'}
+                studies_readable = [study_map.get(s, s) for s in studies]
+            
+            chart_context = f"\n\nCURRENT CHART CONTEXT (User is viewing):\n- Symbol: {symbol}\n- Timeframe: {interval_readable}\n- Indicators: {', '.join(studies_readable) if studies_readable else 'None'}\n\nIMPORTANT: When user asks about 'current chart', 'this chart', or 'what I'm seeing', refer to the above chart context."
+        
+        # Debug logging - show new config
         if chart_analysis.get('needs_chart_update'):
-            print(f"[Chart Update] User {current_user.id}: Current: {current_chart_state}")
-            print(f"[Chart Update] User {current_user.id}: New: {chart_analysis.get('chart_config')}")
+            print(f"[Chart Update] User {current_user.id} new config: {chart_analysis.get('chart_config')}")
         
         # Create messages hash for caching
         messages_str = str([{"role": msg.role, "content": msg.content} for msg in request.messages])
@@ -104,9 +128,18 @@ async def chat_with_ai_coach(
                 chart_update=chart_analysis if chart_analysis['needs_chart_update'] else None
             )
         
+        # Prepare messages with chart context
+        messages_for_ai = [{"role": msg.role, "content": msg.content} for msg in request.messages]
+        
+        # Add chart context to the system message or last user message
+        if chart_context and messages_for_ai:
+            # Append chart context to the last user message
+            messages_for_ai[-1]["content"] += chart_context
+            print(f"[Chart Context] Added context to AI: {chart_context[:100]}...")
+        
         # Process AI request asynchronously
         task = process_ai_request_async.delay(
-            messages=[{"role": msg.role, "content": msg.content} for msg in request.messages],
+            messages=messages_for_ai,
             user_id=current_user.id,
             plan=current_user.plan
         )
@@ -175,11 +208,15 @@ Remember: This is for educational purposes. Always advise users to do their own 
             }
             messages.append(system_message)
             
-            # Add conversation history
-            for msg in request.messages:
+            # Add conversation history with chart context
+            for i, msg in enumerate(request.messages):
+                content = msg.content
+                # Add chart context to the last user message
+                if i == len(request.messages) - 1 and msg.role == "user" and chart_context:
+                    content += chart_context
                 messages.append({
                     "role": msg.role,
-                    "content": msg.content
+                    "content": content
                 })
             
             # Call OpenAI API

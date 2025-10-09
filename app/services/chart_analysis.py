@@ -176,15 +176,14 @@ class ChartAnalysisService:
     def analyze_query_with_ai(self, query: str, current_state: Dict = None) -> Dict:
         """Use AI to analyze user query and extract chart updates"""
         try:
-            response = client.chat.completions.create(
-                model="gpt-5-nano",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": f"""You are a trading chart configuration expert. Analyze user queries and extract chart update information.
+            # Format current state safely
+            import json
+            current_state_str = json.dumps(current_state) if current_state else "No current state (first query)"
+            
+            system_prompt = """You are a trading chart configuration expert. Analyze user queries and extract chart update information.
 
 CURRENT CHART STATE:
-{current_state if current_state else "No current state (first query)"}
+""" + current_state_str + """
 
 CRITICAL: Only update fields that the user EXPLICITLY mentions. Keep all other fields from current state unchanged.
 
@@ -203,7 +202,14 @@ Output JSON format:
         "timeframes": ["1h"],
         "actions": ["add:rsi", "remove:macd", "change:1h"]
     }
-}
+}"""
+            
+            response = client.chat.completions.create(
+                model="gpt-5-nano",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": system_prompt + """
 
 Rules:
 1. Only update fields that user explicitly mentions
