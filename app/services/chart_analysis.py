@@ -10,9 +10,9 @@ class ChartAnalysisService:
     
     def __init__(self):
         self.chart_keywords = {
-            'indicators': ['rsi', 'macd', 'bollinger', 'sma', 'ema', 'stochastic', 'williams', 'cci', 'atr'],
+            'indicators': ['rsi', 'macd', 'bollinger', 'bollinger bands', 'sma', 'ema', 'stochastic', 'williams', 'cci', 'atr'],
             'symbols': ['aapl', 'msft', 'googl', 'amzn', 'tsla', 'nvda', 'meta', 'nflx', 'spy', 'qqq', 'btc', 'eth', 'xrp', 'doge', 'sol', 'ada', 'dot', 'link', 'uni', 'ltc'],
-            'timeframes': ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1M', '3M', '6M', '1Y'],
+            'timeframes': ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w', '1M', '3M', '6M', '1Y', '1-month', '3-month', '6-month', '1-year', 'month', 'months', 'year'],
             'chart_types': ['candlestick', 'line', 'bar', 'area', 'heikin ashi'],
             'patterns': ['support', 'resistance', 'trend', 'breakout', 'reversal', 'triangle', 'head and shoulders']
         }
@@ -173,6 +173,80 @@ class ChartAnalysisService:
             'shop options': 'NYSE:SHOP'
         }
     
+    def _normalize_studies(self, studies: list) -> list:
+        """Normalize study formats to correct TradingView format"""
+        study_normalization = {
+            'STD;BOLLINGER': 'STD;BB',
+            'STD;BOLLINGERBANDS': 'STD;BB',
+            'STD;BOLLINGER BANDS': 'STD;BB',
+            'STD;BOLLINGER_BANDS': 'STD;BB',
+            'BOLLINGER': 'STD;BB',
+            'BOLLINGERBANDS': 'STD;BB',
+            'BB': 'STD;BB',
+            'RSI': 'STD;RSI',
+            'MACD': 'STD;MACD',
+            'SMA': 'STD;SMA',
+            'EMA': 'STD;EMA',
+            'STOCHASTIC': 'STD;STOCH',
+            'STOCH': 'STD;STOCH',
+            'WILLIAMS': 'STD;WPR',
+            'WPR': 'STD;WPR',
+            'CCI': 'STD;CCI',
+            'ATR': 'STD;ATR'
+        }
+        
+        normalized = []
+        for study in studies:
+            # Check if already in correct format
+            if study.startswith('STD;') and study in ['STD;RSI', 'STD;MACD', 'STD;BB', 'STD;SMA', 'STD;EMA', 'STD;STOCH', 'STD;WPR', 'STD;CCI', 'STD;ATR']:
+                normalized.append(study)
+            else:
+                # Try to normalize
+                study_upper = study.upper().replace(' ', '').replace('_', '')
+                if study_upper in study_normalization:
+                    normalized.append(study_normalization[study_upper])
+                elif study.upper() in study_normalization:
+                    normalized.append(study_normalization[study.upper()])
+                else:
+                    # Keep as-is if we don't recognize it
+                    normalized.append(study)
+        
+        return normalized
+    
+    def _normalize_interval(self, interval: str, query: str = "") -> str:
+        """Normalize interval from various formats to TradingView format"""
+        interval_lower = interval.lower()
+        
+        # Check if query contains month/year patterns
+        if 'month' in query.lower():
+            if '6' in query or 'six' in query.lower():
+                return '6M'
+            elif '3' in query or 'three' in query.lower():
+                return '3M'
+            elif '1' in query or 'one' in query.lower():
+                return '1M'
+        
+        if 'year' in query.lower():
+            return '1Y'
+        
+        # Standard mapping
+        interval_map = {
+            '1m': '1', '1min': '1', '1 minute': '1',
+            '5m': '5', '5min': '5', '5 minutes': '5',
+            '15m': '15', '15min': '15', '15 minutes': '15',
+            '30m': '30', '30min': '30', '30 minutes': '30',
+            '1h': '60', '1hr': '60', '1 hour': '60', '60m': '60',
+            '4h': '240', '4hr': '240', '4 hours': '240', '240m': '240',
+            '1d': 'D', '1day': 'D', 'daily': 'D', 'day': 'D',
+            '1w': 'W', '1week': 'W', 'weekly': 'W', 'week': 'W',
+            '1m': '1M', '1month': '1M', '1-month': '1M', 'monthly': '1M',
+            '3m': '3M', '3month': '3M', '3-month': '3M', '3 month': '3M', '3 months': '3M',
+            '6m': '6M', '6month': '6M', '6-month': '6M', '6 month': '6M', '6 months': '6M',
+            '1y': '1Y', '1year': '1Y', '1-year': '1Y', 'yearly': '1Y', 'year': '1Y'
+        }
+        
+        return interval_map.get(interval_lower, interval)
+    
     def analyze_query_with_ai(self, query: str, current_state: Dict = None) -> Dict:
         """Use AI to analyze user query and extract chart updates"""
         try:
@@ -221,9 +295,24 @@ Rules:
    - Forex: FX:EURUSD, FX:GBPUSD, FX:USDJPY, FX:AUDUSD
    - Commodities: OANDA:XAUUSD (gold), NYMEX:CL1! (crude oil)
    - Indices: AMEX:SPY, NASDAQ:QQQ
-5. Intervals: 1m,5m,15m,30m,1h(60),4h(240),1d(D),1w(W),1M(M)
+5. Intervals (CRITICAL - use EXACT format): 
+   - Minutes: 1, 5, 15, 30
+   - Hours: 60 (1h), 240 (4h)
+   - Days/Weeks: D (daily), W (weekly)
+   - Months: 1M (1 month), 3M (3 months), 6M (6 months)
+   - Years: 1Y (1 year)
+   - "6-month" → "6M", "3-month" → "3M", "1 hour" → "60"
 6. Chart types: 1=candlestick, 2=line, 3=bar, 4=area, 5=heikin ashi
-7. Indicators: RSI, MACD, BOLLINGER, SMA, EMA, STOCHASTIC, WILLIAMS, CCI, ATR
+7. Studies format (CRITICAL - MUST use EXACT format):
+   - RSI → "STD;RSI"
+   - MACD → "STD;MACD"
+   - Bollinger Bands → "STD;BB" (NOT STD;BOLLINGER or STD;BOLLINGERBANDS)
+   - SMA → "STD;SMA"
+   - EMA → "STD;EMA"
+   - Stochastic → "STD;STOCH"
+   - Williams %R → "STD;WPR"
+   - CCI → "STD;CCI"
+   - ATR → "STD;ATR"
 8. If no chart update needed (just general question), set needs_chart_update: false
 
 Examples:
@@ -236,9 +325,11 @@ Examples:
 - "I wanna see RSI" → actions: ["add:rsi"], studies: ["STD;RSI"], needs_chart_update: true
 - "Show me MACD" → actions: ["add:macd"], studies: ["STD;MACD"], needs_chart_update: true
 - "Add RSI and MACD" → actions: ["add:rsi", "add:macd"], studies: ["STD;RSI", "STD;MACD"], needs_chart_update: true
+- "Add Bollinger Bands" → actions: ["add:bollinger"], studies: ["STD;BB"], needs_chart_update: true
+- "Show EUR/USD 6-month chart with Bollinger Bands and RSI" → symbol: "FX:EURUSD", interval: "6M", studies: ["STD;BB", "STD;RSI"], needs_chart_update: true
 - "Switch to 1 hour chart" → actions: ["change:1h"], interval: "60", needs_chart_update: true
 - "What is RSI?" → needs_chart_update: false (just explanation, no chart change)
-- "Remove MACD and add Bollinger Bands" → actions: ["remove:macd", "add:bollinger"], needs_chart_update: true
+- "Remove MACD and add Bollinger Bands" → actions: ["remove:macd", "add:bollinger"], studies: ["STD;BB"], needs_chart_update: true
 - "Update chart with USDJPY" → symbol: "FX:USDJPY", needs_chart_update: true
 
 IMPORTANT STATE PRESERVATION:
@@ -280,6 +371,19 @@ Return ONLY valid JSON."""
                 if json_start != -1 and json_end > json_start:
                     json_str = ai_response[json_start:json_end]
                     result = json.loads(json_str)
+                    
+                    # Normalize studies to ensure correct format
+                    if 'chart_config' in result and 'studies' in result['chart_config']:
+                        result['chart_config']['studies'] = self._normalize_studies(
+                            result['chart_config']['studies']
+                        )
+                    
+                    # Normalize interval to ensure correct format
+                    if 'chart_config' in result and 'interval' in result['chart_config']:
+                        result['chart_config']['interval'] = self._normalize_interval(
+                            result['chart_config']['interval'], query
+                        )
+                    
                     return result
             except Exception as parse_error:
                 print(f"JSON parse error: {parse_error}, response: {ai_response}")
@@ -352,18 +456,36 @@ Return ONLY valid JSON."""
         # Extract indicators
         for indicator in self.chart_keywords['indicators']:
             if indicator in query:
-                extracted['indicators'].append(indicator.upper())
+                # Normalize indicator names
+                indicator_upper = indicator.upper().replace(' ', '')
+                if indicator_upper == 'BOLLINGERBANDS' or indicator.upper() == 'BOLLINGER':
+                    if 'BOLLINGER' not in extracted['indicators']:
+                        extracted['indicators'].append('BOLLINGER')
+                elif indicator_upper not in extracted['indicators']:
+                    extracted['indicators'].append(indicator_upper)
         
-        # Extract timeframes
-        for timeframe in self.chart_keywords['timeframes']:
-            if timeframe in query:
-                extracted['timeframes'].append(timeframe)
+        # Extract timeframes - prioritize longer matches first
+        timeframe_patterns = [
+            ('6-month', '6M'), ('6 month', '6M'), ('6 months', '6M'), ('six month', '6M'),
+            ('3-month', '3M'), ('3 month', '3M'), ('3 months', '3M'), ('three month', '3M'),
+            ('1-month', '1M'), ('1 month', '1M'), ('one month', '1M'),
+            ('1-year', '1Y'), ('1 year', '1Y'), ('one year', '1Y'),
+            ('1h', '1h'), ('4h', '4h'), ('1d', '1d'), ('1w', '1w'),
+            ('1m', '1m'), ('5m', '5m'), ('15m', '15m'), ('30m', '30m'),
+            ('6M', '6M'), ('3M', '3M'), ('1M', '1M'), ('1Y', '1Y')
+        ]
+        
+        for pattern, normalized in timeframe_patterns:
+            if pattern in query:
+                if normalized not in extracted['timeframes']:
+                    extracted['timeframes'].append(normalized)
+                    break  # Only take the first match
         
         # Extract comprehensive actions for all chart elements
         action_patterns = [
-            # Indicator actions
-            r'(add|show|display|plot)\s+(rsi|macd|bollinger|sma|ema|stochastic|williams|cci|atr)',
-            r'(remove|delete|hide)\s+(rsi|macd|bollinger|sma|ema|stochastic|williams|cci|atr)',
+            # Indicator actions - check for "bollinger bands" before "bollinger"
+            r'(add|show|display|plot|with)\s+(bollinger\s+bands|rsi|macd|bollinger|sma|ema|stochastic|williams|cci|atr)',
+            r'(remove|delete|hide)\s+(bollinger\s+bands|rsi|macd|bollinger|sma|ema|stochastic|williams|cci|atr)',
             
             # Timeframe/Interval actions
             r'(switch|change|set)\s+to\s+(1m|5m|15m|30m|1h|4h|1d|1w|1M|3M|6M|1Y)',
@@ -398,17 +520,20 @@ Return ONLY valid JSON."""
                     action_type = match
                     target = ""
                 
+                # Normalize target name
+                normalized_target = target.replace(' bands', '').replace(' ', '_')
+                
                 # Categorize actions
                 if any(word in action_type.lower() for word in ['remove', 'delete', 'hide']):
-                    extracted['actions'].append(f"remove:{target}")
-                elif any(word in action_type.lower() for word in ['add', 'show', 'display', 'plot']):
-                    extracted['actions'].append(f"add:{target}")
+                    extracted['actions'].append(f"remove:{normalized_target}")
+                elif any(word in action_type.lower() for word in ['add', 'show', 'display', 'plot', 'with']):
+                    extracted['actions'].append(f"add:{normalized_target}")
                 elif any(word in action_type.lower() for word in ['switch', 'change', 'set']):
-                    extracted['actions'].append(f"change:{target}")
+                    extracted['actions'].append(f"change:{normalized_target}")
                 elif any(word in action_type.lower() for word in ['view', 'look']):
-                    extracted['actions'].append(f"view:{target}")
+                    extracted['actions'].append(f"view:{normalized_target}")
                 else:
-                    extracted['actions'].append(f"action:{action_type}:{target}")
+                    extracted['actions'].append(f"action:{action_type}:{normalized_target}")
         
         return extracted
     
@@ -496,10 +621,10 @@ Return only the TradingView symbol, nothing else."""
                 '4h': '240',
                 '1d': 'D',
                 '1w': 'W',
-                '1M': 'M',
+                '1M': '1M',
                 '3M': '3M',
                 '6M': '6M',
-                '1Y': 'Y'
+                '1Y': '1Y'
             }
             config['interval'] = interval_map.get(timeframe, 'D')
         
