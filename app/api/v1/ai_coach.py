@@ -95,19 +95,33 @@ async def chat_with_ai_coach(
             studies = current_chart_state.get('studies', [])
             
             # Convert interval code to readable format
-            interval_map = {'1': '1m', '5': '5m', '15': '15m', '30': '30m', '60': '1h', '240': '4h', 'D': 'daily', 'W': 'weekly', 'M': 'monthly'}
+            interval_map = {'1': '1m', '5': '5m', '15': '15m', '30': '30m', '60': '1h', '240': '4h', 'D': 'daily', 'W': 'weekly', 'M': 'monthly', '3M': '3-month', '6M': '6-month', '12M': 'yearly'}
             interval_readable = interval_map.get(interval, interval)
             
             # Convert studies to readable format
             studies_readable = []
             if studies:
-                study_map = {'STD;RSI': 'RSI', 'STD;MACD': 'MACD', 'STD;BB': 'Bollinger Bands', 'STD;SMA': 'SMA', 'STD;EMA': 'EMA'}
+                study_map = {'STD;RSI': 'RSI', 'STD;MACD': 'MACD', 'STD;BB': 'Bollinger Bands', 'STD;SMA': 'SMA', 'STD;EMA': 'EMA', 'STD;ADX': 'ADX', 'STD;MFI': 'MFI', 'STD;MOM': 'MOM', 'STD;PPO': 'PPO', 'STD;PVO': 'PVO', 'STD;ROC': 'ROC', 'STD;RVI': 'RVI', 'STD;SAR': 'SAR', 'STD;TRIX': 'TRIX', 'STD;VWAP': 'VWAP', 'STD;WMA': 'WMA', 'STD;BB': 'Bollinger Bands', 'STD;DEMA': 'DEMA', 'STD;TEMA': 'TEMA', 'STD;VIDYA': 'VIDYA', 'STD;VWMA': 'VWMA'}
                 studies_readable = [study_map.get(s, s) for s in studies]
             
             chart_context = f"\n\nCURRENT CHART CONTEXT (User is viewing):\n- Symbol: {symbol}\n- Timeframe: {interval_readable}\n- Indicators: {', '.join(studies_readable) if studies_readable else 'None'}\n\nIMPORTANT: When user asks about 'current chart', 'this chart', or 'what I'm seeing', refer to the above chart context."
         
-        # Debug logging - show new config
+        # Normalize and validate chart config intervals
         if chart_analysis.get('needs_chart_update'):
+            chart_config = chart_analysis.get('chart_config', {})
+            
+            # Fix interval format if AI returned wrong format
+            interval = chart_config.get('interval', 'D')
+            interval_fix_map = {
+                '1Y': '12M',  # Fix yearly
+                'Y': '12M',   # Fix yearly
+                '1M': 'M',    # Fix monthly
+            }
+            if interval in interval_fix_map:
+                chart_config['interval'] = interval_fix_map[interval]
+                chart_analysis['chart_config']['interval'] = interval_fix_map[interval]
+                print(f"[Chart Update] Fixed interval: {interval} → {interval_fix_map[interval]}")
+            
             print(f"[Chart Update] User {current_user.id} new config: {chart_analysis.get('chart_config')}")
         
         # Create messages hash for caching

@@ -192,13 +192,29 @@ class ChartAnalysisService:
             'WILLIAMS': 'STD;WPR',
             'WPR': 'STD;WPR',
             'CCI': 'STD;CCI',
-            'ATR': 'STD;ATR'
+            'ATR': 'STD;ATR',
+            'ADX': 'STD;ADX',
+            'MFI': 'STD;MFI',
+            'MOM': 'STD;MOM',
+            'PPO': 'STD;PPO',
+            'PVO': 'STD;PVO',
+            'ROC': 'STD;ROC',
+            'RVI': 'STD;RVI',
+            'SAR': 'STD;SAR',
+            'TRIX': 'STD;TRIX',
+            'VWAP': 'STD;VWAP',
+            'WMA': 'STD;WMA',
+            'BBANDS': 'STD;BB',
+            'DEMA': 'STD;DEMA',
+            'TEMA': 'STD;TEMA',
+            'VIDYA': 'STD;VIDYA',
+            'VWMA': 'STD;VWMA',
         }
         
         normalized = []
         for study in studies:
             # Check if already in correct format
-            if study.startswith('STD;') and study in ['STD;RSI', 'STD;MACD', 'STD;BB', 'STD;SMA', 'STD;EMA', 'STD;STOCH', 'STD;WPR', 'STD;CCI', 'STD;ATR']:
+            if study.startswith('STD;') and study in ['STD;RSI', 'STD;MACD', 'STD;BB', 'STD;SMA', 'STD;EMA', 'STD;STOCH', 'STD;WPR', 'STD;CCI', 'STD;ATR', 'STD;ADX', 'STD;MFI', 'STD;MOM', 'STD;PPO', 'STD;PVO', 'STD;ROC', 'STD;RVI', 'STD;SAR', 'STD;TRIX', 'STD;VWAP', 'STD;WMA', 'STD;BB', 'STD;DEMA', 'STD;TEMA', 'STD;VIDYA', 'STD;VWMA']:
                 normalized.append(study)
             else:
                 # Try to normalize
@@ -242,7 +258,7 @@ class ChartAnalysisService:
             '1m': '1M', '1month': '1M', '1-month': '1M', 'monthly': '1M',
             '3m': '3M', '3month': '3M', '3-month': '3M', '3 month': '3M', '3 months': '3M',
             '6m': '6M', '6month': '6M', '6-month': '6M', '6 month': '6M', '6 months': '6M',
-            '1y': '1Y', '1year': '1Y', '1-year': '1Y', 'yearly': '1Y', 'year': '1Y'
+            '1y': '12M', '1year': '12M', '1-year': '12M', 'yearly': '12M', 'year': '12M'
         }
         
         return interval_map.get(interval_lower, interval)
@@ -299,9 +315,9 @@ Rules:
    - Minutes: 1, 5, 15, 30
    - Hours: 60 (1h), 240 (4h)
    - Days/Weeks: D (daily), W (weekly)
-   - Months: 1M (1 month), 3M (3 months), 6M (6 months)
-   - Years: 1Y (1 year)
-   - "6-month" → "6M", "3-month" → "3M", "1 hour" → "60"
+   - Months: M (1 month), 3M (3 months), 6M (6 months)
+   - Years: 12M (yearly/1 year)
+   - "1 hour" → "60", "4 hour" → "240", "yearly" → "12M", "1 year" → "12M"
 6. Chart types: 1=candlestick, 2=line, 3=bar, 4=area, 5=heikin ashi
 7. Studies format (CRITICAL - MUST use EXACT format):
    - RSI → "STD;RSI"
@@ -313,6 +329,22 @@ Rules:
    - Williams %R → "STD;WPR"
    - CCI → "STD;CCI"
    - ATR → "STD;ATR"
+   - ADX → "STD;ADX"
+   - MFI → "STD;MFI"
+   - MOM → "STD;MOM"
+   - PPO → "STD;PPO"
+   - PVO → "STD;PVO"
+   - ROC → "STD;ROC"
+   - RVI → "STD;RVI"
+   - SAR → "STD;SAR"
+   - TRIX → "STD;TRIX"
+   - VWAP → "STD;VWAP"
+   - WMA → "STD;WMA"
+   - BBANDS → "STD;BB"
+   - DEMA → "STD;DEMA"
+   - TEMA → "STD;TEMA"
+   - VIDYA → "STD;VIDYA"
+   - VWMA → "STD;VWMA"
 8. If no chart update needed (just general question), set needs_chart_update: false
 
 Examples:
@@ -339,7 +371,7 @@ IMPORTANT STATE PRESERVATION:
 - When user changes timeframe → KEEP symbol, studies, and chart_type
 - ONLY update what user explicitly requests, preserve everything else
 
-Studies format: "STD;RSI", "STD;MACD", "STD;BB", "STD;SMA", "STD;EMA", "STD;STOCH", "STD;WPR", "STD;CCI", "STD;ATR"
+Studies format: "STD;RSI", "STD;MACD", "STD;BB", "STD;SMA", "STD;EMA", "STD;STOCH", "STD;WPR", "STD;CCI", "STD;ATR", "STD;ADX", "STD;MFI", "STD;MOM", "STD;PPO", "STD;PVO", "STD;ROC", "STD;RVI", "STD;SAR", "STD;TRIX", "STD;VWAP", "STD;WMA", "STD;BB", "STD;DEMA", "STD;TEMA", "STD;VIDYA", "STD;VWMA"
 
 State Preservation Examples:
 Current: {symbol: "BINANCE:BTCUSD", interval: "D", studies: ["STD;RSI"], chart_type: "1"}
@@ -484,8 +516,8 @@ Return ONLY valid JSON."""
         # Extract comprehensive actions for all chart elements
         action_patterns = [
             # Indicator actions - check for "bollinger bands" before "bollinger"
-            r'(add|show|display|plot|with)\s+(bollinger\s+bands|rsi|macd|bollinger|sma|ema|stochastic|williams|cci|atr)',
-            r'(remove|delete|hide)\s+(bollinger\s+bands|rsi|macd|bollinger|sma|ema|stochastic|williams|cci|atr)',
+            r'(add|show|display|plot|with)\s+(bollinger\s+bands|rsi|macd|bollinger|sma|ema|stochastic|williams|cci|atr|adx|mfi|mom|ppo|pvo|roc|rvi|sar|trix|vwap|wma|bb|dema|tema|vidya|vwma)',
+            r'(remove|delete|hide)\s+(bollinger\s+bands|rsi|macd|bollinger|sma|ema|stochastic|williams|cci|atr|adx|mfi|mom|ppo|pvo|roc|rvi|sar|trix|vwap|wma|bb|dema|tema|vidya|vwma)',
             
             # Timeframe/Interval actions
             r'(switch|change|set)\s+to\s+(1m|5m|15m|30m|1h|4h|1d|1w|1M|3M|6M|1Y)',
@@ -621,10 +653,11 @@ Return only the TradingView symbol, nothing else."""
                 '4h': '240',
                 '1d': 'D',
                 '1w': 'W',
-                '1M': '1M',
+                '1M': 'M',
                 '3M': '3M',
                 '6M': '6M',
-                '1Y': '1Y'
+                '1Y': '12M',
+                'yearly': '12M'
             }
             config['interval'] = interval_map.get(timeframe, 'D')
         
@@ -639,7 +672,23 @@ Return only the TradingView symbol, nothing else."""
                 'STOCHASTIC': 'STD;STOCH',
                 'WILLIAMS': 'STD;WPR',
                 'CCI': 'STD;CCI',
-                'ATR': 'STD;ATR'
+                'ATR': 'STD;ATR',
+                'ADX': 'STD;ADX',
+                'MFI': 'STD;MFI',
+                'MOM': 'STD;MOM',
+                'PPO': 'STD;PPO',
+                'PVO': 'STD;PVO',
+                'ROC': 'STD;ROC',
+                'RVI': 'STD;RVI',
+                'SAR': 'STD;SAR',
+                'TRIX': 'STD;TRIX',
+                'VWAP': 'STD;VWAP',
+                'WMA': 'STD;WMA',
+                'BBANDS': 'STD;BB',
+                'DEMA': 'STD;DEMA',
+                'TEMA': 'STD;TEMA',
+                'VIDYA': 'STD;VIDYA',
+                'VWMA': 'STD;VWMA',
             }
             
             chart_type_map = {
@@ -682,7 +731,7 @@ Return only the TradingView symbol, nothing else."""
                         interval_map = {
                             '1m': '1', '5m': '5', '15m': '15', '30m': '30',
                             '1h': '60', '4h': '240', '1d': 'D', '1w': 'W',
-                            '1M': 'M', '3M': '3M', '6M': '6M', '1Y': 'Y'
+                            '1M': 'M', '3M': '3M', '6M': '6M', '1Y': '12M', 'yearly': '12M'
                         }
                         config['interval'] = interval_map.get(target, 'D')
                     elif target.upper() in chart_type_map:
