@@ -5,7 +5,7 @@ from app.core.database import get_db
 from app.core.security import create_access_token, create_refresh_token, verify_token
 from app.crud.user import create_user, authenticate_user, get_user_by_email, update_last_login, verify_user_email
 from app.crud.verification import create_email_verification, get_email_verification, mark_email_verification_used
-from app.schemas.auth import UserCreate, UserLogin, Token, UserResponse, EmailVerification, PasswordResetRequest, PasswordReset
+from app.schemas.auth import UserCreate, UserLogin, Token, UserResponse, EmailVerification, PasswordResetRequest, PasswordReset, RefreshTokenRequest
 from app.tasks.email import send_verification_email
 from app.api.dependencies import get_current_user
 from datetime import timedelta
@@ -100,9 +100,9 @@ def login(user_credentials: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=Token)
-def refresh_token(refresh_token: str, db: Session = Depends(get_db)):
+def refresh_token(request: RefreshTokenRequest, db: Session = Depends(get_db)):
     """Refresh access token using refresh token"""
-    token_data = verify_token(refresh_token, "refresh")
+    token_data = verify_token(request.refresh_token, "refresh")
     if not token_data:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

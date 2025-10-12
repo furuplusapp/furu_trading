@@ -79,9 +79,9 @@ class RateLimiter:
             if plan == "free":
                 daily_limit = 5
             elif plan == "pro":
-                daily_limit = 100
+                daily_limit = 999999  # Unlimited
             elif plan == "elite":
-                daily_limit = 1000
+                daily_limit = 999999  # Unlimited
             else:
                 daily_limit = 5  # Default to free plan
             
@@ -123,9 +123,9 @@ class RateLimiter:
             if plan == "free":
                 daily_limit = 5
             elif plan == "pro":
-                daily_limit = 100
+                daily_limit = 999999  # Unlimited
             elif plan == "elite":
-                daily_limit = 1000
+                daily_limit = 999999  # Unlimited
             else:
                 daily_limit = 5  # Default to free plan
             

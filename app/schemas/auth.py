@@ -61,3 +61,7 @@ class PasswordReset(BaseModel):
 
 class EmailVerification(BaseModel):
     token: str
+
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
