@@ -19,35 +19,41 @@ class UpdatePlanRequest(BaseModel):
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_endpoint(
-    current_user = Depends(get_current_user)
+    current_user = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Get current user information with Redis caching"""
+    """Get current user information - always fresh from database"""
     try:
-        # Check cache first
+        # Always fetch fresh data from database to ensure accuracy
+        # This is important for plan updates, profile changes, etc.
+        fresh_user = get_user_by_id(db, current_user.id)
+        
+        if not fresh_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Update cache with fresh data for other endpoints that might use it
         cache_key = get_user_cache_key(current_user.id)
-        cached_user = RedisCache.get(cache_key)
-        
-        if cached_user:
-            return UserResponse(**cached_user)
-        
-        # Cache user data for 15 minutes
         user_data = {
-            "id": current_user.id,
-            "email": current_user.email,
-            "full_name": current_user.full_name,
-            "is_active": current_user.is_active,
-            "is_verified": current_user.is_verified,
-            "plan": current_user.plan,
-            "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
-            "last_login": current_user.last_login.isoformat() if current_user.last_login else None
+            "id": fresh_user.id,
+            "email": fresh_user.email,
+            "full_name": fresh_user.full_name,
+            "is_active": fresh_user.is_active,
+            "is_verified": fresh_user.is_verified,
+            "plan": fresh_user.plan,
+            "created_at": fresh_user.created_at.isoformat() if fresh_user.created_at else None,
+            "last_login": fresh_user.last_login.isoformat() if fresh_user.last_login else None
         }
+        RedisCache.set(cache_key, user_data, expire=300)  # Cache for 5 minutes
         
-        RedisCache.set(cache_key, user_data, expire=900)  # 15 minutes
+        return fresh_user
         
-        return current_user
-        
+    except HTTPException:
+        raise
     except Exception as e:
-        # Fallback to direct user data if caching fails
+        # Fallback to token user data if database query fails
         return current_user
 
 
@@ -124,5 +130,10 @@ async def update_user_plan_endpoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
+    
+    # Invalidate user cache after plan update
+    cache_key = get_user_cache_key(user_id)
+    RedisCache.delete(cache_key)
+    print(f"Cache invalidated for user {user_id} after plan update to {plan_data.plan}")
     
     return {"message": "Plan updated successfully", "user_id": user_id, "plan": plan_data.plan}
