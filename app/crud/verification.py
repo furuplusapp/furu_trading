@@ -3,7 +3,7 @@ from sqlalchemy import and_
 from app.models.verification import EmailVerification, PasswordReset
 from typing import Optional
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 def create_email_verification(db: Session, user_id: int) -> EmailVerification:
@@ -17,7 +17,8 @@ def create_email_verification(db: Session, user_id: int) -> EmailVerification:
     ).delete()
     
     token = str(uuid.uuid4())
-    expires_at = datetime.utcnow() + timedelta(hours=24)
+    from datetime import timezone
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
     
     verification = EmailVerification(
         user_id=user_id,
@@ -37,7 +38,7 @@ def get_email_verification(db: Session, token: str) -> Optional[EmailVerificatio
         and_(
             EmailVerification.token == token,
             EmailVerification.is_used == False,
-            EmailVerification.expires_at > datetime.utcnow()
+            EmailVerification.expires_at > datetime.now(timezone.utc)
         )
     ).first()
 
@@ -64,7 +65,7 @@ def create_password_reset(db: Session, user_id: int) -> PasswordReset:
     ).delete()
     
     token = str(uuid.uuid4())
-    expires_at = datetime.utcnow() + timedelta(hours=1)
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
     
     reset = PasswordReset(
         user_id=user_id,
@@ -84,7 +85,7 @@ def get_password_reset(db: Session, token: str) -> Optional[PasswordReset]:
         and_(
             PasswordReset.token == token,
             PasswordReset.is_used == False,
-            PasswordReset.expires_at > datetime.utcnow()
+            PasswordReset.expires_at > datetime.now(timezone.utc)
         )
     ).first()
 

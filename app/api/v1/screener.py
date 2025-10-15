@@ -6,6 +6,7 @@ from app.models.user import User
 from app.services.polygon_service import PolygonService
 from typing import Optional, List
 from pydantic import BaseModel
+from datetime import datetime, timezone
 
 router = APIRouter()
 
@@ -28,6 +29,8 @@ async def screen_stocks(
     maxDebtToEquity: float = Query(100, description="Maximum debt to equity ratio"),
     minROE: float = Query(10, description="Minimum ROE %"),
     priceRange: str = Query("10,1000", description="Price range as 'min,max'"),
+    page: int = Query(1, description="Page number", ge=1),
+    limit: int = Query(20, description="Items per page", ge=1, le=100),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -56,14 +59,15 @@ async def screen_stocks(
             max_debt_to_equity=maxDebtToEquity,
             min_roe=minROE,
             min_price=min_price,
-            max_price=max_price
+            max_price=max_price,
+            page=page,
+            limit=limit
         )
         
-        # Limit results for free users
+        # Limit results for free users (override pagination)
         if current_user.plan == "free":
             results = results[:5]
         
-        from datetime import datetime
         return ScreenerResponse(
             data=results,
             type="stocks",
@@ -74,7 +78,7 @@ async def screen_stocks(
                 "minMarketCap": minMarketCap,
                 "sector": sector
             },
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
         
     except Exception as e:
@@ -116,7 +120,6 @@ async def screen_crypto(
             exchange_flow=exchangeFlow
         )
         
-        from datetime import datetime
         return ScreenerResponse(
             data=results,
             type="crypto",
@@ -125,7 +128,7 @@ async def screen_crypto(
                 "minMarketCap": minMarketCap,
                 "whaleActivity": whaleActivity
             },
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
         
     except Exception as e:
@@ -165,7 +168,6 @@ async def screen_forex(
             trend=trend
         )
         
-        from datetime import datetime
         return ScreenerResponse(
             data=results,
             type="forex",
@@ -174,7 +176,7 @@ async def screen_forex(
                 "pairType": pairType,
                 "trend": trend
             },
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
         
     except Exception as e:
@@ -218,7 +220,6 @@ async def screen_options(
             max_iv_rank=maxIVRank
         )
         
-        from datetime import datetime
         return ScreenerResponse(
             data=results,
             type="options",
@@ -227,7 +228,7 @@ async def screen_options(
                 "minYield": minYield,
                 "minDTE": minDTE
             },
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
         
     except Exception as e:
@@ -263,7 +264,6 @@ async def screen_commodities(
             seasonal_pattern=seasonalPattern
         )
         
-        from datetime import datetime
         return ScreenerResponse(
             data=results,
             type="commodities",
@@ -271,7 +271,7 @@ async def screen_commodities(
                 "sortBy": sortBy,
                 "category": category
             },
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(timezone.utc).isoformat()
         )
         
     except Exception as e:

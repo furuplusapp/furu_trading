@@ -84,7 +84,8 @@ def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
 
 def update_last_login(db: Session, user: User) -> User:
     """Update user's last login time"""
-    user.last_login = datetime.utcnow()
+    from datetime import timezone
+    user.last_login = datetime.now(timezone.utc)
     db.commit()
     db.refresh(user)
     return user
