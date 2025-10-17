@@ -97,7 +97,8 @@ class PolygonService:
                         dividend_yield = (annual_dividend / current_price) * 100
                     
                     # Apply filters with proper null checks
-                    market_cap = ticker_details_data.get("market_cap") or 0
+                    market_cap = ticker_details_data.get("results").get("market_cap") or 0
+                    print(f"Market cap: {market_cap}")
                     volume = snapshot.get("day", {}).get("v") or 0
                     price = snapshot.get("day", {}).get("c") or 0
                     change_percent = snapshot.get("todaysChangePerc") or 0
@@ -110,22 +111,20 @@ class PolygonService:
                     #     price < max_price):
                     
                     current_page_results.append({
-                            "ticker": snapshot['ticker'],
-                            "name": ticker_details_data.get("name"),
-                            "price": snapshot.get("day", {}).get("c"),
-                            "marketCap": ticker_details_data.get("market_cap"),
-                            "volume": snapshot.get("day", {}).get("v"),    
-                            "changePercent": snapshot.get("todaysChangePerc"),
-                            "dividendYield": dividend_yield,
-                            "score": self._calculate_stock_score(
-                                change_percent, 
-                                volume, 
-                                market_cap, 
-                                price
-                            ),
-                        })   
-                        
-                        
+                        "ticker": snapshot['ticker'],
+                        "name": ticker_details_data.get("results").get("name"),
+                        "price": snapshot.get("day", {}).get("c"),
+                        "marketCap": market_cap,
+                        "volume": snapshot.get("day", {}).get("v"),    
+                        "changePercent": snapshot.get("todaysChangePerc"),
+                        "dividendYield": dividend_yield,
+                        "score": self._calculate_stock_score(
+                            change_percent, 
+                            volume, 
+                            market_cap, 
+                            price
+                        ),
+                    })   
                         
                 except Exception as e:
                     print(f"Error processing {snapshot['ticker']}: {str(e)}")
