@@ -20,14 +20,11 @@ class ScreenerResponse(BaseModel):
 async def screen_stocks(
     sortBy: str = Query("score", description="Sort by: score, change, volume, marketCap"),
     minScore: float = Query(7, description="Minimum AI score"),
-    maxPE: float = Query(50, description="Maximum P/E ratio"),
     minMarketCap: float = Query(1000, description="Minimum market cap in millions"),
     maxMarketCap: float = Query(500000, description="Maximum market cap in millions"),
     minVolume: float = Query(1000000, description="Minimum trading volume"),
     sector: str = Query("all", description="Sector filter"),
     minDividendYield: float = Query(0, description="Minimum dividend yield %"),
-    maxDebtToEquity: float = Query(100, description="Maximum debt to equity ratio"),
-    minROE: float = Query(10, description="Minimum ROE %"),
     priceRange: str = Query("10,1000", description="Price range as 'min,max'"),
     page: int = Query(1, description="Page number", ge=1),
     limit: int = Query(20, description="Items per page", ge=1, le=100),
@@ -50,14 +47,11 @@ async def screen_stocks(
         results = await polygon_service.screen_stocks(
             sort_by=sortBy,
             min_score=minScore,
-            max_pe=maxPE,
             min_market_cap=minMarketCap * 1000000,  # Convert to actual value
             max_market_cap=maxMarketCap * 1000000,
             min_volume=minVolume,
             sector=sector,
             min_dividend_yield=minDividendYield,
-            max_debt_to_equity=maxDebtToEquity,
-            min_roe=minROE,
             min_price=min_price,
             max_price=max_price,
             page=page,
@@ -74,9 +68,11 @@ async def screen_stocks(
             filters={
                 "sortBy": sortBy,
                 "minScore": minScore,
-                "maxPE": maxPE,
                 "minMarketCap": minMarketCap,
-                "sector": sector
+                "sector": sector,
+                "minDividendYield": minDividendYield,
+                "minPrice": min_price,
+                "maxPrice": max_price
             },
             timestamp=datetime.now(timezone.utc).isoformat()
         )

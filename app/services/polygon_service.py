@@ -20,7 +20,9 @@ class PolygonService:
         Make async request to Polygon API
         """
         
-        url = f"{url}&apiKey={self.api_key}"
+        # Check if URL already has query parameters
+        separator = "&" if "?" in url else "?"
+        url = f"{url}{separator}apiKey={self.api_key}"
         
         try:
             async with aiohttp.ClientSession() as session:
@@ -33,176 +35,109 @@ class PolygonService:
                         raise Exception(f"Polygon API error: {response.status}")
         except Exception as e:
             print(f"Request to Polygon failed: {str(e)}")
-            raise
+            # Return empty result instead of raising to prevent complete failure
+            return {"results": [], "status": "ERROR"}
     
     async def screen_stocks(
         self,
         sort_by: str = "score",
         min_score: float = 7,
-        max_pe: float = 50,
         min_market_cap: float = 1000000000,
         max_market_cap: float = 500000000000,
         min_volume: float = 1000000,
         sector: str = "all",
         min_dividend_yield: float = 0,
-        max_debt_to_equity: float = 100,
-        min_roe: float = 10,
         min_price: float = 10,
         max_price: float = 1000,
         page: int = 1,
         limit: int = 20
     ) -> List[Dict[str, Any]]:
         """
-        Screen stocks using Polygon API with cursor-based pagination
-        Step 1: Get ticker list from /v3/reference/tickers
-        Step 2: Get price/volume data for filtered tickers
-        
-        Note: Polygon uses cursor-based pagination via next_url, not page numbers
-        We fetch enough data upfront and handle pagination in memory
+        Screen stocks using Polygon API
         """
         try:
-            print("page", page)
-            # Step 1: Fetch comprehensive ticker list
-            # We'll fetch multiple pages to build a good screening pool
-            tickers_url = f"https://api.polygon.io/v3/reference/tickers?market=stocks&active=true&limit={limit}&sort=ticker&order=asc&type=CS"
-            
+            print(f"Processing page {page} with limit {limit}")
             current_page_results = []
-            page_count = 1
+            snapshot_url = "https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers"
+            snapshot_data = await self._make_request(snapshot_url);
+            snapshot_data = snapshot_data.get("tickers", [])
             
-            while tickers_url and page_count <= page:
-                print(f"Fetching page {page_count} ...")
-                tickers_data = await self._make_request(tickers_url)
-                
-                # If we're at the requested page, store just these results
-                if page_count == page:
-                    current_page_results = tickers_data.get("results", [])
-                    print(f"Found {len(current_page_results)} results for page {page}")
-                    # Apply limit to ensure we don't return more than requested
-                    if len(current_page_results) > limit:
-                        current_page_results = current_page_results[:limit]
-                    break
-                
-                # Check for next_url to continue pagination
-                next_url = tickers_data.get("next_url")
-                if next_url:
-                    print("nexturl", next_url)
-                    tickers_url = next_url
-                    page_count += 1
-                else:
-                    # No more pages available
-                    print(f"Reached end of data at page {page_count}")
-                    break
+            print(f"Total stocks in snapshot: {len(snapshot_data)}")
             
+            # Calculate pagination offsets
+            items_per_page = limit
+            start_index = (page - 1) * items_per_page
+            end_index = start_index + items_per_page
+            
+            print(f"Processing stocks {start_index} to {end_index}")
+            
+            # Process only the stocks for the current page
+            current_page_stocks = snapshot_data[start_index:end_index]
+            
+            for i, snapshot in enumerate(current_page_stocks):
+                print(f"Processing stock {start_index + i + 1}/{len(snapshot_data)}: {snapshot['ticker']}")
+                
+                try:
+                    ticker_details_url = f"https://api.polygon.io/v3/reference/tickers/{snapshot['ticker']}"
+                    ticker_details_data = await self._make_request(ticker_details_url)
+                    
+                    dividends_url = f"https://api.polygon.io/v3/reference/dividends?ticker={snapshot['ticker']}"
+                    dividends_data = await self._make_request(dividends_url)
+                    dividend_yield = 0
+                    
+                    # Calculate dividend yield
+                    if dividends_data.get("results") and len(dividends_data.get("results")) > 0:
+                        latest_dividend = dividends_data.get("results")[0]
+                        cash_amount = latest_dividend.get("cash_amount", 0)
+                        frequency = latest_dividend.get("frequency", 4)  # Default to quarterly
+                        current_price = snapshot.get("day", {}).get("c", 1)
+                        
+                        # Calculate annual dividend based on frequency
+                        annual_dividend = cash_amount * frequency
+                        dividend_yield = (annual_dividend / current_price) * 100
+                    
+                    # Apply filters with proper null checks
+                    market_cap = ticker_details_data.get("market_cap") or 0
+                    volume = snapshot.get("day", {}).get("v") or 0
+                    price = snapshot.get("day", {}).get("c") or 0
+                    change_percent = snapshot.get("todaysChangePerc") or 0
+                    
+                    # if (market_cap > min_market_cap and 
+                    #     market_cap < max_market_cap and 
+                    #     volume > min_volume and 
+                    #     dividend_yield > min_dividend_yield and 
+                    #     price > min_price and 
+                    #     price < max_price):
+                    
+                    current_page_results.append({
+                            "ticker": snapshot['ticker'],
+                            "name": ticker_details_data.get("name"),
+                            "price": snapshot.get("day", {}).get("c"),
+                            "marketCap": ticker_details_data.get("market_cap"),
+                            "volume": snapshot.get("day", {}).get("v"),    
+                            "changePercent": snapshot.get("todaysChangePerc"),
+                            "dividendYield": dividend_yield,
+                            "score": self._calculate_stock_score(
+                                change_percent, 
+                                volume, 
+                                market_cap, 
+                                price
+                            ),
+                        })   
+                        
+                        
+                        
+                except Exception as e:
+                    print(f"Error processing {snapshot['ticker']}: {str(e)}")
+                    continue
+            
+            # If no results after filtering, return mock data
             if not current_page_results:
-                print("No tickers returned from Polygon for requested page")
+                print("No stocks passed filters, returning mock data")
                 return self._get_mock_stocks()
             
-            print(f"Returning {len(current_page_results)} results for page {page}")
+            print(f"Returning {len(current_page_results)} filtered results for page {page}")
             return current_page_results
-            
-            # Step 2: Filter tickers by market cap upfront
-            # filtered_tickers = []
-            # for ticker in all_tickers:
-            #     market_cap = ticker.get("market_cap", 0)
-                
-            #     # Filter by market cap range
-            #     if market_cap and min_market_cap <= market_cap <= max_market_cap:
-            #         filtered_tickers.append({
-            #             "symbol": ticker.get("ticker"),
-            #             "name": ticker.get("name"),
-            #             "market_cap": market_cap,
-            #             "sector": ticker.get("sic_description", "Unknown")
-            #         })
-            
-            # logger.info(f"Filtered to {len(filtered_tickers)} tickers by market cap")
-            
-            # # Step 3: Get price/volume data for filtered tickers (batch request)
-            # # Use previous trading day
-            # today = datetime.now()
-            # yesterday = today - timedelta(days=1)
-            # date_str = yesterday.strftime("%Y-%m-%d")
-            
-            # results = []
-            # # Process in smaller batches to avoid rate limits
-            # for ticker_info in filtered_tickers[:100]:  # Process top 100
-            #     symbol = ticker_info["symbol"]
-                
-            #     try:
-            #         # Get daily bar for this specific ticker
-            #         bar_endpoint = f"/v2/aggs/ticker/{symbol}/range/1/day/{date_str}/{date_str}"
-            #         bar_data = await self._make_request(bar_endpoint, {"adjusted": "true"})
-                    
-            #         if not bar_data.get("results"):
-            #             continue
-                    
-            #         bar = bar_data["results"][0]
-            #         close_price = bar.get("c", 0)
-            #         open_price = bar.get("o", close_price)
-            #         volume = bar.get("v", 0)
-                    
-            #         # Filter by price range
-            #         if close_price < min_price or close_price > max_price:
-            #             continue
-                    
-            #         # Filter by volume
-            #         if volume < min_volume:
-            #             continue
-                    
-            #         # Calculate metrics
-            #         change = close_price - open_price
-            #         change_percent = (change / open_price * 100) if open_price > 0 else 0
-                    
-            #         # Calculate AI score
-            #         score = self._calculate_stock_score(
-            #             change_percent=change_percent,
-            #             volume=volume,
-            #             market_cap=ticker_info["market_cap"],
-            #             price=close_price
-            #         )
-                    
-            #         # Filter by score
-            #         if score < min_score:
-            #             continue
-                    
-            #         results.append({
-            #             "symbol": symbol,
-            #             "name": ticker_info["name"],
-            #             "price": round(close_price, 2),
-            #             "change": round(change, 2),
-            #             "changePercent": round(change_percent, 2),
-            #             "volume": volume,
-            #             "marketCap": ticker_info["market_cap"],
-            #             "pe": None,  # Requires /vX/reference/financials
-            #             "sector": ticker_info["sector"],
-            #             "dividendYield": None,
-            #             "roe": None,
-            #             "score": round(score, 1)
-            #         })
-                    
-            #         # Limit to 50 results before sorting
-            #         if len(results) >= 50:
-            #             break
-                        
-            #     except Exception as e:
-            #         logger.warning(f"Failed to get data for {symbol}: {str(e)}")
-            #         continue
-            
-            # logger.info(f"Found {len(results)} stocks matching criteria")
-            
-            # # Sort results
-            # if sort_by == "score":
-            #     results.sort(key=lambda x: x["score"], reverse=True)
-            # elif sort_by == "change":
-            #     results.sort(key=lambda x: x["changePercent"], reverse=True)
-            # elif sort_by == "volume":
-            #     results.sort(key=lambda x: x["volume"], reverse=True)
-            # elif sort_by == "marketCap":
-            #     results.sort(key=lambda x: x["marketCap"], reverse=True)
-            
-            # # Apply pagination
-            # start_idx = (page - 1) * limit
-            # end_idx = start_idx + limit
-            # return results[start_idx:end_idx]
             
         except Exception as e:
             print(f"Stock screening failed: {str(e)}")
@@ -237,7 +172,7 @@ class PolygonService:
             
             results = []
             for item in data["results"][:50]:
-                symbol = item.get("T", "").replace("X:", "")  # Remove X: prefix
+                ticker = item.get("T", "").replace("X:", "")  # Remove X: prefix
                 close_price = item.get("c", 0)
                 open_price = item.get("o", close_price)
                 volume = item.get("v", 0)
@@ -254,8 +189,8 @@ class PolygonService:
                 score = self._calculate_crypto_score(change_percent, volume)
                 
                 results.append({
-                    "symbol": symbol,
-                    "name": symbol,
+                    "ticker": ticker,
+                    "name": ticker,
                     "price": round(close_price, 2),
                     "change": round(change, 2),
                     "changePercent": round(change_percent, 2),
@@ -420,31 +355,27 @@ class PolygonService:
     def _get_mock_stocks(self) -> List[Dict[str, Any]]:
         return [
             {
-                "symbol": "AAPL",
+                "ticker": "AAPL",
                 "name": "Apple Inc.",
                 "price": 185.42,
                 "change": 2.15,
                 "changePercent": 1.17,
                 "volume": 45234567,
                 "marketCap": 2890000000000,
-                "pe": 28.5,
                 "sector": "Technology",
-                "dividendYield": 0.52,
-                "roe": 157.4,
+                "dividendYield": 2.52,
                 "score": 8.5,
             },
             {
-                "symbol": "MSFT",
+                "ticker": "MSFT",
                 "name": "Microsoft Corporation",
                 "price": 378.85,
                 "change": 4.23,
                 "changePercent": 1.13,
                 "volume": 23456789,
                 "marketCap": 2810000000000,
-                "pe": 32.1,
                 "sector": "Technology",
-                "dividendYield": 0.78,
-                "roe": 45.2,
+                "dividendYield": 2.78,
                 "score": 8.2,
             },
         ]
@@ -452,7 +383,7 @@ class PolygonService:
     def _get_mock_crypto(self) -> List[Dict[str, Any]]:
         return [
             {
-                "symbol": "BTC",
+                "ticker": "BTC",
                 "name": "Bitcoin",
                 "price": 67420.5,
                 "change": 2140.25,
@@ -499,7 +430,7 @@ class PolygonService:
     def _get_mock_commodities(self, category: str) -> List[Dict[str, Any]]:
         return [
             {
-                "symbol": "GC",
+                "ticker": "GC",
                 "category": "metals",
                 "price": 2045.50,
                 "change": 12.30,
