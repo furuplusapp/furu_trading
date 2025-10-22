@@ -31,10 +31,8 @@ class PolygonService:
                         return await response.json()
                     else:
                         error_text = await response.text()
-                        print(f"Polygon API error: {response.status} - {error_text}")
                         raise Exception(f"Polygon API error: {response.status}")
         except Exception as e:
-            print(f"Request to Polygon failed: {str(e)}")
             # Return empty result instead of raising to prevent complete failure
             return {"results": [], "status": "ERROR"}
     
@@ -56,27 +54,37 @@ class PolygonService:
         Screen stocks using Polygon API
         """
         try:
-            print(f"Processing page {page} with limit {limit}")
             current_page_results = []
             snapshot_url = "https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers"
             snapshot_data = await self._make_request(snapshot_url);
             snapshot_data = snapshot_data.get("tickers", [])
-            
             print(f"Total stocks in snapshot: {len(snapshot_data)}")
+            
+            if not snapshot_data:
+                print("No snapshot data received from Polygon API")
+                return []
+            
+            extracted_data = []
+            
+            # for snapshot in snapshot_data:
+            #     ticker_details_url = f"https://api.polygon.io/v3/reference/tickers/{snapshot['ticker']}"
+            #     ticker_details_data = await self._make_request(ticker_details_url)
+            #     extracted_data.append({
+            #         "ticker": ticker_details_data.get("results", {}).get("ticker"), 
+            #         "marketCap": ticker_details_data.get("results", {}).get("market_cap")
+            #     })
+            
+            # sorted_details_data = sorted(extracted_data, key=lambda x: x.get("marketCap", 0), reverse=True)
             
             # Calculate pagination offsets
             items_per_page = limit
             start_index = (page - 1) * items_per_page
             end_index = start_index + items_per_page
             
-            print(f"Processing stocks {start_index} to {end_index}")
-            
             # Process only the stocks for the current page
             current_page_stocks = snapshot_data[start_index:end_index]
             
             for i, snapshot in enumerate(current_page_stocks):
-                print(f"Processing stock {start_index + i + 1}/{len(snapshot_data)}: {snapshot['ticker']}")
-                
                 try:
                     ticker_details_url = f"https://api.polygon.io/v3/reference/tickers/{snapshot['ticker']}"
                     ticker_details_data = await self._make_request(ticker_details_url)
@@ -97,22 +105,14 @@ class PolygonService:
                         dividend_yield = (annual_dividend / current_price) * 100
                     
                     # Apply filters with proper null checks
-                    market_cap = ticker_details_data.get("results").get("market_cap") or 0
-                    print(f"Market cap: {market_cap}")
+                    market_cap = ticker_details_data.get("results", {}).get("market_cap") or 0
                     volume = snapshot.get("day", {}).get("v") or 0
                     price = snapshot.get("day", {}).get("c") or 0
                     change_percent = snapshot.get("todaysChangePerc") or 0
                     
-                    # if (market_cap > min_market_cap and 
-                    #     market_cap < max_market_cap and 
-                    #     volume > min_volume and 
-                    #     dividend_yield > min_dividend_yield and 
-                    #     price > min_price and 
-                    #     price < max_price):
-                    
                     current_page_results.append({
                         "ticker": snapshot['ticker'],
-                        "name": ticker_details_data.get("results").get("name"),
+                        "name": ticker_details_data.get("results", {}).get("name"),
                         "price": snapshot.get("day", {}).get("c"),
                         "marketCap": market_cap,
                         "volume": snapshot.get("day", {}).get("v"),    
@@ -127,182 +127,158 @@ class PolygonService:
                     })   
                         
                 except Exception as e:
-                    print(f"Error processing {snapshot['ticker']}: {str(e)}")
                     continue
             
-            # If no results after filtering, return mock data
             if not current_page_results:
-                print("No stocks passed filters, returning mock data")
-                return self._get_mock_stocks()
+                return []
             
-            print(f"Returning {len(current_page_results)} filtered results for page {page}")
             return current_page_results
             
         except Exception as e:
-            print(f"Stock screening failed: {str(e)}")
-            # Return mock data if API fails
-            return self._get_mock_stocks()
+            return []
     
     async def screen_crypto(
         self,
-        sort_by: str = "whale_flow",
-        min_market_cap: float = 100000000,
-        max_market_cap: float = 1000000000000,
-        min_volume_24h: float = 10000000,
-        whale_activity: str = "all",
-        exchange_flow: str = "all"
+        page: int = 1,
+        limit: int = 20
     ) -> List[Dict[str, Any]]:
         """
         Screen cryptocurrencies using Polygon API
-        Uses: /v2/aggs/grouped/locale/global/market/crypto/{date}
         """
         try:
-            today = datetime.now()
-            yesterday = today - timedelta(days=1)
-            date_str = yesterday.strftime("%Y-%m-%d")
+            current_page_results = []
+            snapshot_url = "https://api.polygon.io/v2/snapshot/locale/global/markets/crypto/tickers"
+            snapshot_data = await self._make_request(snapshot_url);
+            snapshot_data = snapshot_data.get("tickers", [])
+            print(f"Total crypto in snapshot: {len(snapshot_data)}")
             
-            endpoint = f"/v2/aggs/grouped/locale/global/market/crypto/{date_str}"
-            params = {"adjusted": "true"}
+            if not snapshot_data:
+                print("No crypto snapshot data received from Polygon API")
+                return []
             
-            data = await self._make_request(endpoint, params)
+            # Calculate pagination offsets
+            items_per_page = limit
+            start_index = (page - 1) * items_per_page
+            end_index = start_index + items_per_page
             
-            if not data.get("results"):
-                return self._get_mock_crypto()
+            # Process only the stocks for the current page
+            current_page_crypto = snapshot_data[start_index:end_index]
             
-            results = []
-            for item in data["results"][:50]:
-                ticker = item.get("T", "").replace("X:", "")  # Remove X: prefix
-                close_price = item.get("c", 0)
-                open_price = item.get("o", close_price)
-                volume = item.get("v", 0)
-                
-                change = close_price - open_price
-                change_percent = (change / open_price * 100) if open_price > 0 else 0
-                
-                # Estimate market cap (simplified)
-                estimated_market_cap = close_price * volume * 100
-                
-                if estimated_market_cap < min_market_cap or estimated_market_cap > max_market_cap:
+            for i, snapshot in enumerate(current_page_crypto):
+                try:
+                    ticker_details_url = f"https://api.polygon.io/v3/reference/tickers/{snapshot['ticker']}"
+                    ticker_details_data = await self._make_request(ticker_details_url)
+                    
+                    # Apply filters with proper null checks
+                    volume = snapshot.get("day", {}).get("v") or 0
+                    price = snapshot.get("day", {}).get("c") or 0
+                    change_percent = snapshot.get("todaysChangePerc") or 0
+                    
+                    current_page_results.append({
+                        "ticker": snapshot['ticker'],
+                        "name": ticker_details_data.get("results").get("name"),
+                        "price": snapshot.get("day", {}).get("c"),
+                        "volume": snapshot.get("day", {}).get("v"),
+                        "changePercent": snapshot.get("todaysChangePerc"),
+                        "score": self._calculate_stock_score(
+                            change_percent, 
+                            volume, 
+                            price
+                        ),
+                    })   
+                        
+                except Exception as e:
                     continue
-                
-                score = self._calculate_crypto_score(change_percent, volume)
-                
-                results.append({
-                    "ticker": ticker,
-                    "name": ticker,
-                    "price": round(close_price, 2),
-                    "change": round(change, 2),
-                    "changePercent": round(change_percent, 2),
-                    "marketCap": estimated_market_cap,
-                    "volume24h": volume,
-                    "whaleFlow": "accumulation" if change_percent > 2 else "distribution" if change_percent < -2 else "neutral",
-                    "exchangeFlow": "outflow" if volume > min_volume_24h * 2 else "inflow",
-                    "score": round(score, 1)
-                })
             
-            if sort_by == "whale_flow":
-                results.sort(key=lambda x: x["score"], reverse=True)
-            elif sort_by == "volume":
-                results.sort(key=lambda x: x["volume24h"], reverse=True)
-            elif sort_by == "marketCap":
-                results.sort(key=lambda x: x["marketCap"], reverse=True)
+            if not current_page_results:
+                return []
             
-            return results[:20]
+            return current_page_results
             
         except Exception as e:
-            print(f"Crypto screening failed: {str(e)}")
-            return self._get_mock_crypto()
+            return []
     
     async def screen_forex(
         self,
-        sort_by: str = "volatility",
-        pair_type: str = "major",
-        min_volatility: float = 0.5,
-        max_volatility: float = 3.0,
-        trend: str = "all"
+        page: int = 1,
+        limit: int = 20
     ) -> List[Dict[str, Any]]:
         """
-        Screen forex pairs using Polygon API
-        Uses: /v2/aggs/grouped/locale/global/market/fx/{date}
+        Screen forex using Polygon API
         """
         try:
-            today = datetime.now()
-            yesterday = today - timedelta(days=1)
-            date_str = yesterday.strftime("%Y-%m-%d")
+            current_page_results = []
+            snapshot_url = "https://api.polygon.io/v2/snapshot/locale/global/markets/forex/tickers"
+            snapshot_data = await self._make_request(snapshot_url);
+            snapshot_data = snapshot_data.get("tickers", [])
             
-            endpoint = f"/v2/aggs/grouped/locale/global/market/fx/{date_str}"
-            params = {"adjusted": "true"}
+            # Calculate pagination offsets
+            items_per_page = limit
+            start_index = (page - 1) * items_per_page
+            end_index = start_index + items_per_page
             
-            data = await self._make_request(endpoint, params)
+            # Process only the stocks for the current page
+            current_page_forex = snapshot_data[start_index:end_index]
             
-            if not data.get("results"):
-                return self._get_mock_forex()
-            
-            results = []
-            for item in data["results"][:30]:
-                pair = item.get("T", "").replace("C:", "")
-                close_price = item.get("c", 0)
-                open_price = item.get("o", close_price)
-                high = item.get("h", close_price)
-                low = item.get("l", close_price)
+            for i, snapshot in enumerate(current_page_forex):
+                print(f"Processing forex {snapshot}")
                 
-                change = close_price - open_price
-                change_percent = (change / open_price * 100) if open_price > 0 else 0
-                volatility = ((high - low) / open_price * 100) if open_price > 0 else 0
-                
-                if volatility < min_volatility or volatility > max_volatility:
+                try:
+                    ticker_details_url = f"https://api.polygon.io/v3/reference/tickers/{snapshot['ticker']}"
+                    ticker_details_data = await self._make_request(ticker_details_url)
+                    
+                    print(f"Ticker details data: {ticker_details_data}")
+                    # Apply filters with proper null checks
+                    volume = snapshot.get("day", {}).get("v") or 0
+                    price = snapshot.get("day", {}).get("c") or 0
+                    change_percent = snapshot.get("todaysChangePerc") or 0
+                    
+                    current_page_results.append({
+                        "ticker": snapshot['ticker'],
+                        "name": ticker_details_data.get("results").get("name"),
+                        "price": snapshot.get("day", {}).get("c"),
+                        "volume": snapshot.get("day", {}).get("v"),
+                        "changePercent": snapshot.get("todaysChangePerc"),
+                        "score": self._calculate_stock_score(
+                            change_percent, 
+                            volume, 
+                            price
+                        ),
+                    })   
+                        
+                except Exception as e:
+                    print(e)
                     continue
                 
-                score = self._calculate_forex_score(volatility, abs(change_percent))
-                
-                results.append({
-                    "pair": pair,
-                    "type": pair_type,
-                    "price": round(close_price, 4),
-                    "change": round(change, 4),
-                    "changePercent": round(change_percent, 2),
-                    "volatility": round(volatility, 2),
-                    "trend": "bullish" if change_percent > 0.5 else "bearish" if change_percent < -0.5 else "sideways",
-                    "activeSession": "London",
-                    "newsImpact": "low",
-                    "score": round(score, 1)
-                })
+            if not current_page_results:
+                print("failed")
             
-            return results[:20]
+            return current_page_results
             
         except Exception as e:
-            print(f"Forex screening failed: {str(e)}")
-            return self._get_mock_forex()
+            print(e)
     
     async def screen_options(
         self,
-        strategy: str = "csp",
-        min_yield: float = 8,
-        max_yield: float = 25,
-        min_dte: int = 30,
-        max_dte: int = 60,
-        min_iv_rank: float = 20,
-        max_iv_rank: float = 80
+        page: int = 1,
+        limit: int = 20
     ) -> List[Dict[str, Any]]:
         """
         Screen options - Returns mock data for now as Polygon options API requires premium tier
         """
-        # Options data requires Polygon premium tier
-        # For now, return enhanced mock data
-        return self._get_mock_options(strategy, min_yield, max_yield, min_dte, max_dte)
+        return []
     
     async def screen_commodities(
         self,
-        sort_by: str = "momentum",
-        category: str = "all",
-        seasonal_pattern: str = "all"
+        page: int = 1,
+        limit: int = 20
     ) -> List[Dict[str, Any]]:
         """
-        Screen commodities - Returns mock data for now
+        Screen commodities
         """
-        return self._get_mock_commodities(category)
+        return []
     
-    def _calculate_stock_score(self, change_percent: float, volume: float, market_cap: float, price: float) -> float:
+    def _calculate_stock_score(self, change_percent: float, volume: float, price: float) -> float:
         """Calculate AI score for stocks"""
         score = 5.0  # Base score
         
@@ -318,9 +294,11 @@ class PolygonService:
         elif volume > 5000000:
             score += 0.5
         
-        # Market cap sweet spot
-        if 10000000000 < market_cap < 100000000000:
+        # Price
+        if price > 100:
             score += 1
+        elif price > 50:
+            score += 0.5
         
         return min(max(score, 0), 10)
     
@@ -350,95 +328,4 @@ class PolygonService:
         
         return min(max(score, 0), 10)
     
-    # Mock data fallbacks
-    def _get_mock_stocks(self) -> List[Dict[str, Any]]:
-        return [
-            {
-                "ticker": "AAPL",
-                "name": "Apple Inc.",
-                "price": 185.42,
-                "change": 2.15,
-                "changePercent": 1.17,
-                "volume": 45234567,
-                "marketCap": 2890000000000,
-                "sector": "Technology",
-                "dividendYield": 2.52,
-                "score": 8.5,
-            },
-            {
-                "ticker": "MSFT",
-                "name": "Microsoft Corporation",
-                "price": 378.85,
-                "change": 4.23,
-                "changePercent": 1.13,
-                "volume": 23456789,
-                "marketCap": 2810000000000,
-                "sector": "Technology",
-                "dividendYield": 2.78,
-                "score": 8.2,
-            },
-        ]
-    
-    def _get_mock_crypto(self) -> List[Dict[str, Any]]:
-        return [
-            {
-                "ticker": "BTC",
-                "name": "Bitcoin",
-                "price": 67420.5,
-                "change": 2140.25,
-                "changePercent": 3.28,
-                "marketCap": 1320000000000,
-                "volume24h": 28500000000,
-                "whaleFlow": "accumulation",
-                "exchangeFlow": "outflow",
-                "score": 9.1,
-            },
-        ]
-    
-    def _get_mock_forex(self) -> List[Dict[str, Any]]:
-        return [
-            {
-                "pair": "EUR/USD",
-                "type": "major",
-                "price": 1.0842,
-                "change": -0.0021,
-                "changePercent": -0.19,
-                "volatility": 0.65,
-                "trend": "sideways",
-                "activeSession": "London",
-                "newsImpact": "low",
-                "score": 7.3,
-            },
-        ]
-    
-    def _get_mock_options(self, strategy: str, min_yield: float, max_yield: float, min_dte: int, max_dte: int) -> List[Dict[str, Any]]:
-        return [
-            {
-                "underlying": "AAPL",
-                "strategy": strategy.upper(),
-                "strike": 180,
-                "dte": 45,
-                "premium": 2.50,
-                "yield": 12.5,
-                "ivRank": 45,
-                "liquidity": 850,
-                "riskScore": 3.5,
-            },
-        ]
-    
-    def _get_mock_commodities(self, category: str) -> List[Dict[str, Any]]:
-        return [
-            {
-                "ticker": "GC",
-                "category": "metals",
-                "price": 2045.50,
-                "change": 12.30,
-                "changePercent": 0.60,
-                "momentum": "strong",
-                "seasonal": "favorable",
-                "inventory": "normal",
-                "newsEvents": 2,
-                "score": 7.8,
-            },
-        ]
 
