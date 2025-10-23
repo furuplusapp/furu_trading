@@ -38,15 +38,6 @@ class PolygonService:
     
     async def screen_stocks(
         self,
-        sort_by: str = "score",
-        min_score: float = 7,
-        min_market_cap: float = 1000000000,
-        max_market_cap: float = 500000000000,
-        min_volume: float = 1000000,
-        sector: str = "all",
-        min_dividend_yield: float = 0,
-        min_price: float = 10,
-        max_price: float = 1000,
         page: int = 1,
         limit: int = 20
     ) -> List[Dict[str, Any]]:
@@ -63,18 +54,6 @@ class PolygonService:
             if not snapshot_data:
                 print("No snapshot data received from Polygon API")
                 return []
-            
-            extracted_data = []
-            
-            # for snapshot in snapshot_data:
-            #     ticker_details_url = f"https://api.polygon.io/v3/reference/tickers/{snapshot['ticker']}"
-            #     ticker_details_data = await self._make_request(ticker_details_url)
-            #     extracted_data.append({
-            #         "ticker": ticker_details_data.get("results", {}).get("ticker"), 
-            #         "marketCap": ticker_details_data.get("results", {}).get("market_cap")
-            #     })
-            
-            # sorted_details_data = sorted(extracted_data, key=lambda x: x.get("marketCap", 0), reverse=True)
             
             # Calculate pagination offsets
             items_per_page = limit
@@ -105,36 +84,33 @@ class PolygonService:
                         dividend_yield = (annual_dividend / current_price) * 100
                     
                     # Apply filters with proper null checks
-                    market_cap = ticker_details_data.get("results", {}).get("market_cap") or 0
-                    volume = snapshot.get("day", {}).get("v") or 0
-                    price = snapshot.get("day", {}).get("c") or 0
-                    change_percent = snapshot.get("todaysChangePerc") or 0
+                    market_cap = ticker_details_data.get("results", {}).get("market_cap", 0)
+                    volume = snapshot.get("day", {}).get("v", 0)
+                    price = snapshot.get("day", {}).get("c", 0)
+                    change_percent = snapshot.get("todaysChangePerc", 0)
                     
                     current_page_results.append({
                         "ticker": snapshot['ticker'],
-                        "name": ticker_details_data.get("results", {}).get("name"),
-                        "price": snapshot.get("day", {}).get("c"),
+                        "name": ticker_details_data.get("results", {}).get("name", "N/A"),
+                        "price": price,
                         "marketCap": market_cap,
-                        "volume": snapshot.get("day", {}).get("v"),    
-                        "changePercent": snapshot.get("todaysChangePerc"),
+                        "volume": volume,    
+                        "changePercent": change_percent,
                         "dividendYield": dividend_yield,
-                        "score": self._calculate_stock_score(
-                            change_percent, 
-                            volume, 
-                            market_cap, 
-                            price
-                        ),
                     })   
                         
                 except Exception as e:
+                    print("error processing stock", e)
                     continue
             
             if not current_page_results:
+                print("no current page results")
                 return []
             
             return current_page_results
             
         except Exception as e:
+            print("error processing stocks", e)
             return []
     
     async def screen_crypto(
@@ -170,32 +146,30 @@ class PolygonService:
                     ticker_details_data = await self._make_request(ticker_details_url)
                     
                     # Apply filters with proper null checks
-                    volume = snapshot.get("day", {}).get("v") or 0
-                    price = snapshot.get("day", {}).get("c") or 0
-                    change_percent = snapshot.get("todaysChangePerc") or 0
+                    volume = snapshot.get("day", {}).get("v", 0)
+                    price = snapshot.get("day", {}).get("c", 0)
+                    change_percent = snapshot.get("todaysChangePerc", 0)
                     
                     current_page_results.append({
                         "ticker": snapshot['ticker'],
-                        "name": ticker_details_data.get("results").get("name"),
-                        "price": snapshot.get("day", {}).get("c"),
-                        "volume": snapshot.get("day", {}).get("v"),
-                        "changePercent": snapshot.get("todaysChangePerc"),
-                        "score": self._calculate_stock_score(
-                            change_percent, 
-                            volume, 
-                            price
-                        ),
+                        "name": ticker_details_data.get("results", {}).get("name", "N/A"),
+                        "price": price,
+                        "volume": volume,
+                        "changePercent": change_percent,
                     })   
                         
                 except Exception as e:
+                    print("error processing crypto", e)
                     continue
             
             if not current_page_results:
+                print("no current page results")
                 return []
             
             return current_page_results
             
         except Exception as e:
+            print("error processing crypto", e)
             return []
     
     async def screen_forex(
@@ -229,35 +203,32 @@ class PolygonService:
                     
                     print(f"Ticker details data: {ticker_details_data}")
                     # Apply filters with proper null checks
-                    volume = snapshot.get("day", {}).get("v") or 0
-                    price = snapshot.get("day", {}).get("c") or 0
-                    change_percent = snapshot.get("todaysChangePerc") or 0
+                    volume = snapshot.get("day", {}).get("v", 0)
+                    price = snapshot.get("day", {}).get("c", 0)
+                    change_percent = snapshot.get("todaysChangePerc", 0)
                     
                     current_page_results.append({
                         "ticker": snapshot['ticker'],
-                        "name": ticker_details_data.get("results").get("name"),
-                        "price": snapshot.get("day", {}).get("c"),
-                        "volume": snapshot.get("day", {}).get("v"),
-                        "changePercent": snapshot.get("todaysChangePerc"),
-                        "score": self._calculate_stock_score(
-                            change_percent, 
-                            volume, 
-                            price
-                        ),
+                        "name": ticker_details_data.get("results", {}).get("name", "N/A"),
+                        "price": price,
+                        "volume": volume,
+                        "changePercent": change_percent,
                     })   
                         
                 except Exception as e:
-                    print(e)
+                    print("error processing forex", e)
                     continue
                 
             if not current_page_results:
-                print("failed")
+                print("no current page results")
+                return []
             
             return current_page_results
             
         except Exception as e:
-            print(e)
-    
+            print("error processing forex", e)
+            return []
+        
     async def screen_options(
         self,
         page: int = 1,
@@ -265,16 +236,6 @@ class PolygonService:
     ) -> List[Dict[str, Any]]:
         """
         Screen options - Returns mock data for now as Polygon options API requires premium tier
-        """
-        return []
-    
-    async def screen_commodities(
-        self,
-        page: int = 1,
-        limit: int = 20
-    ) -> List[Dict[str, Any]]:
-        """
-        Screen commodities
         """
         return []
     
@@ -301,31 +262,3 @@ class PolygonService:
             score += 0.5
         
         return min(max(score, 0), 10)
-    
-    def _calculate_crypto_score(self, change_percent: float, volume: float) -> float:
-        """Calculate AI score for crypto"""
-        score = 5.0
-        
-        if change_percent > 5:
-            score += 2.5
-        elif change_percent > 2:
-            score += 1.5
-        
-        if volume > 1000000:
-            score += 1.5
-        
-        return min(max(score, 0), 10)
-    
-    def _calculate_forex_score(self, volatility: float, abs_change: float) -> float:
-        """Calculate AI score for forex"""
-        score = 5.0
-        
-        if 0.5 < volatility < 2.0:
-            score += 2
-        
-        if abs_change > 0.5:
-            score += 1.5
-        
-        return min(max(score, 0), 10)
-    
-
