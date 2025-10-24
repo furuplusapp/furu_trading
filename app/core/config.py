@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     
     #Polygon API
     polygon_stocks_api_key: str = os.getenv("POLYGON_STOCKS_API_KEY")
-    polygon_options_api_key: str = os.getenv("POLYGON_OPTIONS_API_KEY")
+    # polygon_options_api_key: str = os.getenv("POLYGON_OPTIONS_API_KEY")
     
     #Environment
     environment: str = os.getenv("ENVIRONMENT")
