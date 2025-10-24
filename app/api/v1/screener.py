@@ -19,6 +19,7 @@ class ScreenerResponse(BaseModel):
 async def screen_stocks(
     page: int = Query(1, description="Page number", ge=1),
     limit: int = Query(20, description="Items per page", ge=1, le=100),
+    search: Optional[str] = Query(None, description="Search term for ticker or name"),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -30,7 +31,8 @@ async def screen_stocks(
         # Get screened stocks from Polygon
         results = await polygon_service.screen_stocks(
             page=page,
-            limit=limit
+            limit=limit,
+            search=search
         )
         
         # Limit results for free users (override pagination)
@@ -53,6 +55,7 @@ async def screen_stocks(
 async def screen_crypto(
     page: int = Query(1, description="Page number", ge=1),
     limit: int = Query(20, description="Items per page", ge=1, le=100),
+    search: Optional[str] = Query(None, description="Search term for ticker or name"),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -70,7 +73,8 @@ async def screen_crypto(
         
         results = await polygon_service.screen_crypto(
             page=page,
-            limit=limit
+            limit=limit,
+            search=search
         )
         
         return ScreenerResponse(
@@ -89,6 +93,7 @@ async def screen_crypto(
 async def screen_forex(
     page: int = Query(1, description="Page number", ge=1),
     limit: int = Query(20, description="Items per page", ge=1, le=100),
+    search: Optional[str] = Query(None, description="Search term for ticker or name"),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -106,7 +111,8 @@ async def screen_forex(
         
         results = await polygon_service.screen_forex(
             page=page,
-            limit=limit
+            limit=limit,
+            search=search
         )
         
         return ScreenerResponse(
@@ -125,6 +131,7 @@ async def screen_forex(
 async def screen_options(
     page: int = Query(1, description="Page number", ge=1),
     limit: int = Query(20, description="Items per page", ge=1, le=100),
+    search: Optional[str] = Query(None, description="Search term for ticker or name"),
     current_user: User = Depends(get_current_user),
 ):
     """
@@ -142,7 +149,8 @@ async def screen_options(
         
         results = await polygon_service.screen_options(
             page=page,
-            limit=limit
+            limit=limit,
+            search=search
         )
         
         return ScreenerResponse(
