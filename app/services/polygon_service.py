@@ -13,16 +13,21 @@ class PolygonService:
     """
     
     def __init__(self):
-        self.api_key = settings.polygon_api_key
+        self.stocks_api_key = settings.polygon_stocks_api_key
+        self.options_api_key = settings.polygon_stocks_api_key
         
-    async def _make_request(self, url: str) -> Dict[str, Any]:
+    async def _make_request(self, url: str, type: str) -> Dict[str, Any]:
         """
         Make async request to Polygon API
         """
         
         # Check if URL already has query parameters
         separator = "&" if "?" in url else "?"
-        url = f"{url}{separator}apiKey={self.api_key}"
+        
+        if type == "options":
+            url = f"{url}{separator}apiKey={self.options_api_key}"
+        else:
+            url = f"{url}{separator}apiKey={self.stocks_api_key}"
         
         try:
             async with aiohttp.ClientSession() as session:
@@ -31,32 +36,39 @@ class PolygonService:
                         return await response.json()
                     else:
                         error_text = await response.text()
+                        print("error making request", error_text)
                         raise Exception(f"Polygon API error: {response.status}")
         except Exception as e:
             # Return empty result instead of raising to prevent complete failure
+            print("error making request", e)
             return {"results": [], "status": "ERROR"}
         
     async def _get_ticker_details_data(self, type: str, ticker: str) -> Dict[str, Any]:
         """
         Get ticker details data from Polygon API
         """
+        
         try:
             ticker_details_url = f"https://api.polygon.io/v3/reference/tickers/{ticker}"
-            ticker_details_data = await self._make_request(ticker_details_url)
+            ticker_details_data = await self._make_request(ticker_details_url, "stocks")
+        
             if type == "stock":
                 market_cap = ticker_details_data.get("results", {}).get("market_cap", 0)
                 name = ticker_details_data.get("results", {}).get("name", "N/A")
+        
                 return {
                     "marketCap": market_cap,
                     "name": name,
                 }
             elif type == "crypto":
                 name = ticker_details_data.get("results", {}).get("name", "N/A")
+                
                 return {
                     "name": name,
                 }
             elif type == "forex":
                 name = ticker_details_data.get("results", {}).get("name", "N/A")
+                
                 return {
                     "name": name,
                 }
@@ -70,17 +82,20 @@ class PolygonService:
         """
         try:
             dividends_url = f"https://api.polygon.io/v3/reference/dividends?ticker={ticker}"
-            dividends_data = await self._make_request(dividends_url)
+            dividends_data = await self._make_request(dividends_url, "stocks")
             dividends = dividends_data.get("results", [])
+            
             if len(dividends) > 0:
                 latest_dividend = dividends[0]
                 cash_amount = latest_dividend.get("cash_amount", 0)
                 frequency = latest_dividend.get("frequency", 4)  # Default to quarterly
                 annual_dividend = cash_amount * frequency
                 dividend_yield = (annual_dividend / price) * 100
+                
                 return {
                     "dividendYield": dividend_yield,
                 }
+                
             return {
                 "dividendYield": 0,
             }
@@ -94,6 +109,7 @@ class PolygonService:
         """
         Get stock snapshot data
         """
+        
         ticker = snapshot.get("ticker", "")
         volume = snapshot.get("day", {}).get("v", 0)
         price = snapshot.get("day", {}).get("c", 0)
@@ -115,35 +131,34 @@ class PolygonService:
         """
         Screen stocks using Polygon API
         """
+        
         try:
             current_page_results = []
             # Apply search filter if provided
             if search:
                 search = search.upper()
                 snapshot_url = f"https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers/{search}"
-                snapshot_data = await self._make_request(snapshot_url)
+                snapshot_data = await self._make_request(snapshot_url, "stocks")
                 snapshot_data = snapshot_data.get("ticker", {})
-                
+        
                 if not snapshot_data:
                     print("No snapshot data received from Polygon API")
                     return []
                 
                 ticker_details_data = await self._get_ticker_details_data("stock", search)
                 stock_snapshot_data = self._get_snapshot_data(snapshot_data)
-                dividend_yield_data = await self._get_dividend_yield_data(search, stock_snapshot_data['price'])
-                                    
+                dividend_yield_data = await self._get_dividend_yield_data(search, stock_snapshot_data['price'])                    
+        
                 current_page_results.append({
                     **stock_snapshot_data,
                     **ticker_details_data,
                     **dividend_yield_data,
                 })
-                   
             else:    
                 snapshot_url = "https://api.polygon.io/v2/snapshot/locale/us/markets/stocks/tickers"
-                snapshot_data = await self._make_request(snapshot_url);
+                snapshot_data = await self._make_request(snapshot_url, "stocks");
                 snapshot_data = snapshot_data.get("tickers", [])
-                print(f"Total stocks in snapshot: {len(snapshot_data)}")
-                
+        
                 if not snapshot_data:
                     print("No snapshot data received from Polygon API")
                     return []
@@ -160,8 +175,8 @@ class PolygonService:
                     try:
                         ticker_details_data = await self._get_ticker_details_data("stock", snapshot['ticker'])
                         stock_snapshot_data = self._get_snapshot_data(snapshot)
-                        dividend_yield_data = await self._get_dividend_yield_data(snapshot['ticker'], stock_snapshot_data['price'])
-                                            
+                        dividend_yield_data = await self._get_dividend_yield_data(snapshot['ticker'], stock_snapshot_data['price'])                          
+
                         current_page_results.append({
                             **stock_snapshot_data,
                             **ticker_details_data,
@@ -191,27 +206,28 @@ class PolygonService:
         """
         try:
             current_page_results = []
+
             if search:
                 search = f"X:{search.upper()}"
                 snapshot_url = f"https://api.polygon.io/v2/snapshot/locale/global/markets/crypto/tickers/{search}"
-                snapshot_data = await self._make_request(snapshot_url);
+                snapshot_data = await self._make_request(snapshot_url, "crypto");
                 snapshot_data = snapshot_data.get("ticker", {})
-                
+
                 if not snapshot_data:
                     print("No snapshot data received from Polygon API")
                     return []
                 
                 ticker_details_data = await self._get_ticker_details_data("crypto", search)
                 crypto_snapshot_data = self._get_snapshot_data(snapshot_data)
+
                 current_page_results.append({
                     **ticker_details_data,
                     **crypto_snapshot_data,
                 })   
             else:
                 snapshot_url = "https://api.polygon.io/v2/snapshot/locale/global/markets/crypto/tickers"
-                snapshot_data = await self._make_request(snapshot_url);
+                snapshot_data = await self._make_request(snapshot_url, "crypto");
                 snapshot_data = snapshot_data.get("tickers", [])
-                print(f"Total crypto in snapshot: {len(snapshot_data)}")
             
             # Calculate pagination offsets
                 items_per_page = limit
@@ -225,11 +241,11 @@ class PolygonService:
                     try:
                         ticker_details_data = await self._get_ticker_details_data("crypto", snapshot['ticker'])
                         crypto_snapshot_data = self._get_snapshot_data(snapshot)
+
                         current_page_results.append({
                             **ticker_details_data,
                             **crypto_snapshot_data,
                         })   
-                            
                     except Exception as e:
                         print("error processing crypto", e)
                         continue
@@ -253,30 +269,32 @@ class PolygonService:
         """
         Screen forex using Polygon API
         """
+        
         try:
             current_page_results = []
             if search:
                 search = f"C:{search.upper()}"
                 snapshot_url = f"https://api.polygon.io/v2/snapshot/locale/global/markets/forex/tickers/{search}"
-                snapshot_data = await self._make_request(snapshot_url);
-                snapshot_data = snapshot_data.get("ticker", {})
-                
+                snapshot_data = await self._make_request(snapshot_url, "forex");
+                snapshot_data = snapshot_data.get("ticker", {})        
+
                 if not snapshot_data:
                     print("No snapshot data received from Polygon API")
                     return []
                 
                 ticker_details_data = await self._get_ticker_details_data("forex", search)
                 forex_snapshot_data = self._get_snapshot_data(snapshot_data)
+
                 current_page_results.append({
                     **ticker_details_data,
                     **forex_snapshot_data,
                 })   
             else:
                 snapshot_url = "https://api.polygon.io/v2/snapshot/locale/global/markets/forex/tickers"
-                snapshot_data = await self._make_request(snapshot_url);
+                snapshot_data = await self._make_request(snapshot_url, "forex");
                 snapshot_data = snapshot_data.get("tickers", [])
                 print(f"Total forex in snapshot: {len(snapshot_data)}")
-                
+
                 if not snapshot_data:
                     print("No snapshot data received from Polygon API")
                     return []
@@ -293,11 +311,11 @@ class PolygonService:
                     try:
                         ticker_details_data = await self._get_ticker_details_data("forex", snapshot['ticker'])
                         forex_snapshot_data = self._get_snapshot_data(snapshot)
+
                         current_page_results.append({
                             **ticker_details_data,
                             **forex_snapshot_data,
                         })   
-                            
                     except Exception as e:
                         print("error processing forex", e)
                         continue
@@ -319,10 +337,40 @@ class PolygonService:
         search: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
-        Screen options - Returns mock data for now as Polygon options API requires premium tier
+        Screen options using Polygon API
         """
-        return []
-    
+        
+        try:
+            count = 0
+            current_page_results = []
+
+            if search:
+                search = search.upper()
+                snapshot_url = f"https://api.polygon.io/v3/snapshot/options/{search}?order=asc&limit={limit}&sort=ticker"
+                while snapshot_url:
+                    snapshot_data = await self._make_request(snapshot_url, "options");
+                    snapshot_url = snapshot_data.get("next_url", None)
+                    snapshot_data = snapshot_data.get("results", [])            
+                    
+                    if not snapshot_data:
+                        break
+                    
+                    current_page_results = snapshot_data
+                    count += 1
+                    
+                    if page == count:
+                        break
+                    
+            if not current_page_results:
+                print("no current page results")
+                return []
+            
+            return current_page_results
+            
+        except Exception as e:
+            print("error processing options", e)
+            return []
+        
     def _calculate_stock_score(self, change_percent: float, volume: float, price: float) -> float:
         """Calculate AI score for stocks"""
         score = 5.0  # Base score

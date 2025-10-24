@@ -23,7 +23,7 @@ async def screen_stocks(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Screen stocks based on various fundamental and technical criteria using Polygon API
+    Screen stocks using Polygon API
     """
     try:
         polygon_service = PolygonService()
@@ -59,7 +59,7 @@ async def screen_crypto(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Screen cryptocurrencies based on on-chain metrics
+    Screen cryptocurrencies using Polygon API
     Pro/Elite only
     """
     if current_user.plan == "free":
@@ -97,7 +97,7 @@ async def screen_forex(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Screen forex pairs based on volatility and trends
+    Screen forex pairs using Polygon API
     Pro/Elite only
     """
     if current_user.plan == "free":
@@ -135,7 +135,7 @@ async def screen_options(
     current_user: User = Depends(get_current_user),
 ):
     """
-    Screen options based on strategy and yield requirements
+    Screen options using Polygon API
     Pro/Elite only
     """
     if current_user.plan == "free":
