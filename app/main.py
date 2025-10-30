@@ -2,12 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.api.v1 import api_router
-from app.core.database import engine
-from app.models import user, verification
-    
+from app.core.database import engine, Base
+from app.models import user, verification, education
+
 # Create database tables
-user.Base.metadata.create_all(bind=engine)
-verification.Base.metadata.create_all(bind=engine)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title=settings.app_name,
