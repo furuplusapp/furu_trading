@@ -6,9 +6,7 @@ import enum
 
 
 class LessonType(str, enum.Enum):
-    VIDEO = "video"
     DESCRIPTION = "description"
-    PRACTICE = "practice"
 
 
 class CourseLevel(str, enum.Enum):
@@ -52,7 +50,7 @@ class Lesson(Base):
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=False, index=True)
     title = Column(String, nullable=False)
     duration = Column(String, nullable=False)  # e.g., "15 min"
-    # Persist enum VALUES (e.g., 'video') to match SQL type 'lesson_type_enum'
+    # Persist enum VALUES (e.g., 'description') to match SQL type 'lesson_type_enum'
     type = Column(
         Enum(
             LessonType,
@@ -62,7 +60,6 @@ class Lesson(Base):
         nullable=False,
     )
     content = Column(Text, nullable=True)  # For description type lessons
-    video_url = Column(String, nullable=True)  # For video lessons (path to video file)
     order = Column(Integer, nullable=False)  # Display order within course
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

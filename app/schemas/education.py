@@ -5,9 +5,7 @@ from enum import Enum
 
 
 class LessonType(str, Enum):
-    VIDEO = "video"
     DESCRIPTION = "description"
-    PRACTICE = "practice"
 
 
 class CourseLevel(str, Enum):
@@ -22,7 +20,6 @@ class LessonBase(BaseModel):
     duration: str
     type: LessonType
     content: Optional[str] = None
-    video_url: Optional[str] = None
     order: int
 
 
@@ -35,7 +32,6 @@ class LessonUpdate(BaseModel):
     duration: Optional[str] = None
     type: Optional[LessonType] = None
     content: Optional[str] = None
-    video_url: Optional[str] = None
     order: Optional[int] = None
 
 

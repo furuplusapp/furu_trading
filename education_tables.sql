@@ -4,7 +4,7 @@
 
 -- Create ENUM types (only if they don't exist)
 DO $$ BEGIN
-    CREATE TYPE lesson_type_enum AS ENUM ('video', 'description', 'practice');
+    CREATE TYPE lesson_type_enum AS ENUM ('description');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
@@ -41,7 +41,6 @@ CREATE TABLE lessons (
     duration VARCHAR NOT NULL,
     type lesson_type_enum NOT NULL,
     content TEXT,
-    video_url VARCHAR,
     "order" INTEGER NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE,

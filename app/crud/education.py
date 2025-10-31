@@ -68,7 +68,6 @@ def create_course(db: Session, course: CourseCreate) -> Course:
             duration=lesson_data.duration,
             type=lesson_data.type,
             content=lesson_data.content,
-            video_url=lesson_data.video_url,
             order=order,
         )
         db.add(db_lesson)
